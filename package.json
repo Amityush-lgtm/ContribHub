@@ -1,0 +1,11 @@
+{
+  "name": "contribhub",
+  "version": "1.0.0",
+  "description": "ContribHub - Open-Source Mentorship & Contribution Management Platform",
+  "scripts": {
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "seed": "npm --prefix backend run seed",
+    "install:all": "npm --prefix backend install && npm --prefix frontend install"
+  }
+}
