@@ -24,7 +24,9 @@ import {
   Eye,
   FileEdit,
   Trash2,
-  Send
+  Send,
+  RefreshCw,
+  Github
 } from 'lucide-react';
 
 export const MenteeDashboard = () => {
@@ -41,6 +43,10 @@ export const MenteeDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState(null);
+  const [showGithubModal, setShowGithubModal] = useState(false);
+  const [inputGithubUsername, setInputGithubUsername] = useState(user?.githubUsername || '');
 
   const loadData = async () => {
     try {
@@ -57,6 +63,23 @@ export const MenteeDashboard = () => {
       if (contribRes.stats) {
         setStats(contribRes.stats);
       }
+
+      // Auto-sync from GitHub if user has linked GitHub and portfolio is currently empty
+      if (user?.githubUsername && (!contribRes.contributions || contribRes.contributions.length === 0)) {
+        try {
+          const syncRes = await apiFetch('/api/contributions/sync/me', {
+            method: 'POST',
+            body: JSON.stringify({ githubUsername: user.githubUsername })
+          });
+          if (syncRes.data?.importedCount > 0) {
+            const freshContribRes = await apiFetch('/api/contributions/mine');
+            setContributions(freshContribRes.contributions || []);
+            if (freshContribRes.stats) setStats(freshContribRes.stats);
+          }
+        } catch (_) {
+          // Silent fallback to avoid blocking dashboard view
+        }
+      }
     } catch (err) {
       console.error('Failed to load mentee dashboard data:', err);
     } finally {
@@ -67,6 +90,30 @@ export const MenteeDashboard = () => {
   useEffect(() => {
     loadData();
   }, []);
+
+  const handleSyncGitHub = async (overrideUsername) => {
+    const targetUsername = overrideUsername || user?.githubUsername || inputGithubUsername;
+    if (!targetUsername || !targetUsername.trim()) {
+      setShowGithubModal(true);
+      return;
+    }
+
+    setSyncing(true);
+    setSyncMessage(null);
+    try {
+      const res = await apiFetch('/api/contributions/sync/me', {
+        method: 'POST',
+        body: JSON.stringify({ githubUsername: targetUsername.trim() })
+      });
+      setSyncMessage({ type: 'success', text: res.message });
+      setShowGithubModal(false);
+      await loadData();
+    } catch (err) {
+      setSyncMessage({ type: 'error', text: err.message || 'Failed to sync with GitHub' });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const handleSubmitDraft = async (contribId) => {
     if (!window.confirm('Submit this draft for mentor review?')) return;
@@ -119,15 +166,61 @@ export const MenteeDashboard = () => {
           </p>
         </div>
 
-        <Link
-          to="/mentee/contributions/new"
-          className="btn btn-primary"
-          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.25rem' }}
-        >
-          <PlusCircle size={18} />
-          <span>Record New Contribution</span>
-        </Link>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => handleSyncGitHub()}
+            disabled={syncing}
+            className="btn btn-primary"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.75rem 1.25rem',
+              cursor: syncing ? 'not-allowed' : 'pointer'
+            }}
+            title="Automatically import your latest Pull Requests from GitHub"
+          >
+            <RefreshCw
+              size={17}
+              style={{
+                animation: syncing ? 'spin 1s linear infinite' : 'none'
+              }}
+            />
+            <span>{syncing ? 'Syncing GitHub...' : 'Sync GitHub PRs'}</span>
+          </button>
+        </div>
       </div>
+
+      {/* Sync Status Alert Banner */}
+      {syncMessage && (
+        <div style={{
+          marginBottom: '1.5rem',
+          padding: '0.85rem 1.25rem',
+          borderRadius: 'var(--radius-sm)',
+          background: syncMessage.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+          border: `1px solid ${syncMessage.type === 'success' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+          color: syncMessage.type === 'success' ? '#34d399' : '#f87171',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          fontSize: '0.9rem'
+        }}>
+          <span>{syncMessage.text}</span>
+          <button
+            onClick={() => setSyncMessage(null)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'inherit',
+              cursor: 'pointer',
+              fontSize: '1rem',
+              padding: '0 0.25rem'
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Metrics Row */}
       <div style={{
@@ -244,15 +337,22 @@ export const MenteeDashboard = () => {
               <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '0.35rem' }}>
                 No Contribution Records Found
               </h3>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem', maxWidth: '420px', marginInline: 'auto' }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem', maxWidth: '440px', marginInline: 'auto' }}>
                 {searchTerm || activeFilter !== 'all'
                   ? 'Try adjusting your search or status filter to see other records.'
-                  : 'You have not created any contribution records yet. Record your first bug fix, feature, or PR!'}
+                  : 'No contributions found yet. All contributions sync automatically from your GitHub pull requests!'}
               </p>
-              <Link to="/mentee/contributions/new" className="btn btn-primary btn-sm">
-                <PlusCircle size={15} />
-                <span>Record Your First Contribution</span>
-              </Link>
+              {!searchTerm && activeFilter === 'all' && (
+                <button
+                  onClick={() => (user?.githubUsername ? handleSyncGitHub() : setShowGithubModal(true))}
+                  disabled={syncing}
+                  className="btn btn-primary btn-sm"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+                >
+                  <RefreshCw size={14} style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }} />
+                  <span>{syncing ? 'Syncing...' : user?.githubUsername ? 'Sync GitHub Contributions' : 'Link GitHub & Sync PRs'}</span>
+                </button>
+              )}
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -482,6 +582,66 @@ export const MenteeDashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* GitHub Username Modal for first-time sync */}
+      {showGithubModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '1rem'
+        }}>
+          <div className="glass-panel" style={{ width: '100%', maxWidth: '440px', padding: '1.75rem' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Github size={20} />
+              <span>Sync with GitHub</span>
+            </h3>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
+              Enter your public GitHub username. ContribHub will fetch your public Pull Requests, import them as draft contributions, and update PR statuses automatically.
+            </p>
+            <form onSubmit={(e) => { e.preventDefault(); handleSyncGitHub(inputGithubUsername); }}>
+              <div className="form-group">
+                <label className="form-label">GitHub Username</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. torvalds or octocat"
+                  value={inputGithubUsername}
+                  onChange={(e) => setInputGithubUsername(e.target.value)}
+                  className="form-control"
+                  autoFocus
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowGithubModal(false)}
+                  className="btn btn-outline btn-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={syncing || !inputGithubUsername.trim()}
+                  className="btn btn-primary btn-sm"
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                >
+                  {syncing && <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} />}
+                  <span>{syncing ? 'Syncing...' : 'Start Sync'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

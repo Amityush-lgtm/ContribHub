@@ -1,6 +1,7 @@
 import User from '../models/User.js';
 import MentorshipAssignment from '../models/MentorshipAssignment.js';
 import { generateToken } from '../middleware/auth.js';
+import { performGitHubSync } from './contributionController.js';
 
 export const login = async (req, res, next) => {
   try {
@@ -124,6 +125,15 @@ export const register = async (req, res, next) => {
       githubUsername: githubUsername ? githubUsername.trim().replace(/^@/, '') : ''
     });
 
+    // Auto-sync contributions immediately if GitHub username was provided
+    if (user.githubUsername) {
+      try {
+        await performGitHubSync(user);
+      } catch (syncErr) {
+        console.warn('Auto-sync on register notice:', syncErr.message);
+      }
+    }
+
     const token = generateToken(user);
 
     res.cookie('token', token, {
@@ -157,6 +167,16 @@ export const updateProfile = async (req, res, next) => {
     }
 
     await user.save();
+
+    // Auto-sync contributions if GitHub username is present
+    if (user.githubUsername) {
+      try {
+        await performGitHubSync(user);
+      } catch (syncErr) {
+        console.warn('Auto-sync on updateProfile notice:', syncErr.message);
+      }
+    }
+
     res.status(200).json({ success: true, message: 'Profile updated successfully.', user });
   } catch (err) {
     next(err);

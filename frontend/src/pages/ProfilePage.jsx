@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { User, Shield, Compass, Code2, Save, CheckCircle } from 'lucide-react';
+import { User, Shield, Compass, Code2, Save, CheckCircle, RefreshCw } from 'lucide-react';
 
 export const ProfilePage = () => {
   const { user, apiFetch, refreshUser } = useAuth();
@@ -10,8 +10,32 @@ export const ProfilePage = () => {
   const [skills, setSkills] = useState(user?.skills ? user.skills.join(', ') : '');
   const [interests, setInterests] = useState(user?.interests ? user.interests.join(', ') : '');
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+
+  const handleSyncContributions = async () => {
+    if (!githubUsername.trim()) {
+      setError('Please provide your GitHub username to sync.');
+      return;
+    }
+    setSyncing(true);
+    setSyncFeedback('');
+    setError('');
+    try {
+      const res = await apiFetch('/api/contributions/sync/me', {
+        method: 'POST',
+        body: JSON.stringify({ githubUsername: githubUsername.trim() })
+      });
+      setSyncFeedback(res.message);
+      if (refreshUser) await refreshUser();
+    } catch (err) {
+      setError(err.message || 'Failed to sync with GitHub');
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const handleUpdate = async (e) => {
     e.preventDefault();
@@ -119,13 +143,14 @@ export const ProfilePage = () => {
 
           <div className="form-group">
             <label className="form-label">GitHub Username</label>
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
               <input
                 type="text"
                 value={githubUsername}
                 onChange={(e) => setGithubUsername(e.target.value)}
                 placeholder="e.g. Amityush-lgtm"
                 className="form-control"
+                style={{ flex: 1, minWidth: '180px' }}
               />
               {githubUsername && (
                 <a
@@ -138,7 +163,38 @@ export const ProfilePage = () => {
                   View Profile
                 </a>
               )}
+              <button
+                type="button"
+                onClick={handleSyncContributions}
+                disabled={syncing || !githubUsername.trim()}
+                className="btn btn-outline btn-sm"
+                style={{
+                  flexShrink: 0,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  borderColor: 'rgba(56, 189, 248, 0.4)',
+                  color: '#38bdf8'
+                }}
+                title="Fetch recent Pull Requests from GitHub and auto-populate contributions"
+              >
+                <RefreshCw
+                  size={13}
+                  style={{
+                    animation: syncing ? 'spin 1s linear infinite' : 'none'
+                  }}
+                />
+                <span>{syncing ? 'Syncing...' : 'Sync Contributions'}</span>
+              </button>
             </div>
+            {syncFeedback && (
+              <div style={{ marginTop: '0.5rem', fontSize: '0.825rem', color: '#34d399' }}>
+                ✓ {syncFeedback}
+              </div>
+            )}
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem', display: 'block' }}>
+              Used to automatically discover your open-source Pull Requests and track merge statuses.
+            </span>
           </div>
 
           <div className="form-group">

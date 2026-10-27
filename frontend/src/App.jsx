@@ -78,7 +78,7 @@ export const App = () => {
       >
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<MenteeDashboard />} />
-        <Route path="contributions/new" element={<ContributionFormPage />} />
+        <Route path="contributions/new" element={<Navigate to="/mentee/dashboard" replace />} />
         <Route path="contributions/edit/:id" element={<ContributionFormPage />} />
       </Route>
 

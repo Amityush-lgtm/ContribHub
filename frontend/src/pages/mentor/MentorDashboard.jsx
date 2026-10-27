@@ -25,7 +25,8 @@ import {
   CheckCircle,
   XCircle,
   RefreshCw,
-  Github
+  Github,
+  Code2
 } from 'lucide-react';
 
 export const MentorDashboard = () => {
@@ -35,18 +36,40 @@ export const MentorDashboard = () => {
   const [filterTab, setFilterTab] = useState('pending'); // 'pending' | 'approved' | 'changes_requested' | 'all'
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Quick review modal state
   const [reviewingContrib, setReviewingContrib] = useState(null);
   const [reviewDecision, setReviewDecision] = useState('approved');
   const [feedbackText, setFeedbackText] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
   const [modalError, setModalError] = useState('');
+  const [syncingMenteeId, setSyncingMenteeId] = useState(null);
+  const [mentorSyncMessage, setMentorSyncMessage] = useState(null);
+  const [activeView, setActiveView] = useState('queue'); // 'queue' | 'my_contributions'
+  const [myContributions, setMyContributions] = useState([]);
+  const [syncingMyGitHub, setSyncingMyGitHub] = useState(false);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const res = await apiFetch('/api/dashboard/mentor');
+      const [res, mineRes] = await Promise.all([
+        apiFetch('/api/dashboard/mentor'),
+        apiFetch('/api/contributions/mine').catch(() => ({ contributions: [] }))
+      ]);
       setDashboardData(res);
+      setMyContributions(mineRes.contributions || []);
+
+      // Auto-sync mentor's own GitHub PRs if they have a GitHub username and currently 0 contributions
+      if (user?.githubUsername && (!mineRes.contributions || mineRes.contributions.length === 0)) {
+        try {
+          const syncRes = await apiFetch('/api/contributions/sync/me', {
+            method: 'POST',
+            body: JSON.stringify({ githubUsername: user.githubUsername })
+          });
+          if (syncRes.data?.importedCount > 0) {
+            const freshMine = await apiFetch('/api/contributions/mine');
+            setMyContributions(freshMine.contributions || []);
+          }
+        } catch (_) {}
+      }
     } catch (err) {
       console.error('Failed to load mentor dashboard data:', err);
     } finally {
@@ -54,9 +77,49 @@ export const MentorDashboard = () => {
     }
   };
 
+  const handleSyncMyGitHub = async () => {
+    if (!user?.githubUsername) {
+      alert('Please link your GitHub username in your Profile first.');
+      return;
+    }
+    setSyncingMyGitHub(true);
+    setMentorSyncMessage(null);
+    try {
+      const res = await apiFetch('/api/contributions/sync/me', {
+        method: 'POST',
+        body: JSON.stringify({ githubUsername: user.githubUsername })
+      });
+      setMentorSyncMessage({ type: 'success', text: res.message });
+      const freshMine = await apiFetch('/api/contributions/mine');
+      setMyContributions(freshMine.contributions || []);
+    } catch (err) {
+      setMentorSyncMessage({ type: 'error', text: err.message || 'Failed to sync your GitHub' });
+    } finally {
+      setSyncingMyGitHub(false);
+    }
+  };
+
   useEffect(() => {
     loadData();
   }, []);
+
+  const handleSyncMenteeGitHub = async (mentee) => {
+    if (!mentee.githubUsername) {
+      alert(`${mentee.name} has not linked a GitHub username yet.`);
+      return;
+    }
+    setSyncingMenteeId(mentee._id);
+    setMentorSyncMessage(null);
+    try {
+      const res = await apiFetch(`/api/contributions/sync/${mentee._id}`, { method: 'POST' });
+      setMentorSyncMessage({ type: 'success', text: res.message });
+      await loadData();
+    } catch (err) {
+      setMentorSyncMessage({ type: 'error', text: err.message || 'Failed to sync mentee GitHub' });
+    } finally {
+      setSyncingMenteeId(null);
+    }
+  };
 
   const openQuickReview = (contrib) => {
     setReviewingContrib(contrib);
@@ -150,6 +213,203 @@ export const MentorDashboard = () => {
           <span>Refresh Queue</span>
         </button>
       </div>
+
+      {/* Sync Status Alert Banner */}
+      {mentorSyncMessage && (
+        <div style={{
+          marginBottom: '1.5rem',
+          padding: '0.85rem 1.25rem',
+          borderRadius: 'var(--radius-sm)',
+          background: mentorSyncMessage.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+          border: `1px solid ${mentorSyncMessage.type === 'success' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+          color: mentorSyncMessage.type === 'success' ? '#34d399' : '#f87171',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          fontSize: '0.9rem'
+        }}>
+          <span>{mentorSyncMessage.text}</span>
+          <button
+            onClick={() => setMentorSyncMessage(null)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'inherit',
+              cursor: 'pointer',
+              fontSize: '1rem',
+              padding: '0 0.25rem'
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Workspace Mode Switcher: Review Queue vs My Contributions */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.5rem',
+        marginBottom: '2rem',
+        padding: '0.35rem',
+        background: 'rgba(15, 23, 42, 0.8)',
+        borderRadius: 'var(--radius-sm)',
+        border: '1px solid var(--border-color)',
+        width: 'fit-content'
+      }}>
+        <button
+          onClick={() => setActiveView('queue')}
+          className={`btn btn-sm ${activeView === 'queue' ? 'btn-primary' : 'btn-outline'}`}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', padding: '0.45rem 1rem', fontSize: '0.85rem' }}
+        >
+          <Compass size={15} />
+          <span>Mentee Review Queue ({stats.pendingReviewCount})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveView('my_contributions')}
+          className={`btn btn-sm ${activeView === 'my_contributions' ? 'btn-primary' : 'btn-outline'}`}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', padding: '0.45rem 1rem', fontSize: '0.85rem' }}
+        >
+          <Code2 size={15} />
+          <span>My GitHub Contributions ({myContributions.length})</span>
+        </button>
+      </div>
+
+      {activeView === 'my_contributions' ? (
+        /* Mentor Personal Contributions View */
+        <div>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '1rem',
+            marginBottom: '1.5rem',
+            padding: '1.25rem',
+            background: 'rgba(15, 23, 42, 0.6)',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--border-color)'
+          }}>
+            <div>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.25rem' }}>
+                My Open-Source Portfolio
+              </h2>
+              <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                {user?.githubUsername
+                  ? `Contributions synced from @${user.githubUsername}`
+                  : 'Link your GitHub username in your Profile to automatically import your pull requests.'}
+              </p>
+            </div>
+
+            <button
+              onClick={handleSyncMyGitHub}
+              disabled={syncingMyGitHub}
+              className="btn btn-primary btn-sm"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', padding: '0.5rem 1rem' }}
+            >
+              <RefreshCw size={14} style={{ animation: syncingMyGitHub ? 'spin 1s linear infinite' : 'none' }} />
+              <span>{syncingMyGitHub ? 'Syncing...' : 'Sync My GitHub PRs'}</span>
+            </button>
+          </div>
+
+          {myContributions.length === 0 ? (
+            <div className="glass-panel" style={{ padding: '3rem 2rem', textAlign: 'center', borderRadius: 'var(--radius-md)' }}>
+              <GitPullRequest size={42} style={{ color: 'var(--text-muted)', marginBottom: '1rem' }} />
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+                No Personal Contributions Found
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem', maxWidth: '440px', marginInline: 'auto' }}>
+                {user?.githubUsername
+                  ? `No public pull requests found for @${user.githubUsername} on GitHub yet.`
+                  : 'Add your GitHub username in your Profile to automatically import and display your pull requests here.'}
+              </p>
+              {user?.githubUsername ? (
+                <button onClick={handleSyncMyGitHub} disabled={syncingMyGitHub} className="btn btn-primary btn-sm">
+                  <RefreshCw size={14} style={{ animation: syncingMyGitHub ? 'spin 1s linear infinite' : 'none' }} />
+                  <span>Sync My GitHub PRs</span>
+                </button>
+              ) : (
+                <Link to="/profile" className="btn btn-primary btn-sm">
+                  <span>Go to Profile to Link GitHub</span>
+                </Link>
+              )}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {myContributions.map((c) => (
+                <div
+                  key={c._id}
+                  className="glass-panel"
+                  style={{
+                    padding: '1.25rem',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border-color)',
+                    background: 'rgba(15, 23, 42, 0.7)'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: '280px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.4rem' }}>
+                        <PRStatusBadge status={c.pullRequestStatus} />
+                        <ContributionTypeBadge type={c.contributionType} />
+                        <span style={{ fontSize: '0.8rem', color: 'var(--accent-cyan)', fontWeight: 600 }}>
+                          {c.projectName}
+                        </span>
+                      </div>
+                      <h3 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+                        {c.title}
+                      </h3>
+                      {c.summary && (
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                          {c.summary}
+                        </p>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Link
+                        to={`/contributions/${c._id}`}
+                        className="btn btn-outline btn-sm"
+                        style={{ padding: '0.35rem 0.75rem', fontSize: '0.775rem' }}
+                      >
+                        <Eye size={13} />
+                        <span>View</span>
+                      </Link>
+                    </div>
+                  </div>
+
+                  <div style={{
+                    marginTop: '0.75rem',
+                    paddingTop: '0.65rem',
+                    borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    fontSize: '0.75rem',
+                    color: 'var(--text-muted)'
+                  }}>
+                    <span>Updated {new Date(c.updatedAt).toLocaleDateString()}</span>
+                    {c.pullRequestUrl && (
+                      <a
+                        href={c.pullRequestUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: '#38bdf8' }}
+                      >
+                        <span>GitHub PR</span>
+                        <ExternalLink size={11} />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Review Queue View */
+        <>
 
       {/* Metrics Row */}
       <div style={{
@@ -443,17 +703,54 @@ export const MentorDashboard = () => {
                       )}
                     </div>
 
-                    {/* Progress chips */}
-                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.725rem', padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.15)', color: '#6ee7b7' }}>
-                        {menteeStats?.approved || 0} Approved
-                      </span>
-                      <span style={{ fontSize: '0.725rem', padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24' }}>
-                        {menteeStats?.pending || 0} Pending
-                      </span>
-                      <span style={{ fontSize: '0.725rem', padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'rgba(99, 102, 241, 0.15)', color: '#a5b4fc' }}>
-                        {menteeStats?.total || 0} Total
-                      </span>
+                    {/* Progress chips & GitHub Sync Button */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '0.5rem',
+                      flexWrap: 'wrap',
+                      marginTop: '0.65rem',
+                      paddingTop: '0.5rem',
+                      borderTop: '1px solid rgba(255, 255, 255, 0.05)'
+                    }}>
+                      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '0.725rem', padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.15)', color: '#6ee7b7' }}>
+                          {menteeStats?.approved || 0} Approved
+                        </span>
+                        <span style={{ fontSize: '0.725rem', padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24' }}>
+                          {menteeStats?.pending || 0} Pending
+                        </span>
+                        <span style={{ fontSize: '0.725rem', padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'rgba(99, 102, 241, 0.15)', color: '#a5b4fc' }}>
+                          {menteeStats?.total || 0} Total
+                        </span>
+                      </div>
+
+                      {mentee?.githubUsername && (
+                        <button
+                          onClick={() => handleSyncMenteeGitHub(mentee)}
+                          disabled={syncingMenteeId === mentee._id}
+                          className="btn btn-outline btn-sm"
+                          style={{
+                            padding: '0.2rem 0.5rem',
+                            fontSize: '0.725rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                            borderColor: 'rgba(56, 189, 248, 0.3)',
+                            color: '#38bdf8'
+                          }}
+                          title={`Sync ${mentee.name}'s latest public Pull Requests from GitHub`}
+                        >
+                          <RefreshCw
+                            size={11}
+                            style={{
+                              animation: syncingMenteeId === mentee._id ? 'spin 1s linear infinite' : 'none'
+                            }}
+                          />
+                          <span>{syncingMenteeId === mentee._id ? 'Syncing...' : 'Sync PRs'}</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -479,6 +776,8 @@ export const MentorDashboard = () => {
           </div>
         </div>
       </div>
+      </>
+      )}
 
       {/* Quick Review Modal */}
       {reviewingContrib && (

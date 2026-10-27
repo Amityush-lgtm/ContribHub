@@ -64,8 +64,8 @@ app.use('/api/assignments', assignmentRoutes);
 app.use('/api/contributions', contributionRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 
-// ---------- Production: serve React frontend ----------
-if (process.env.NODE_ENV === 'production') {
+// ---------- Production: serve React frontend (non-serverless) ----------
+if (process.env.NODE_ENV === 'production' && !process.env.VERCEL) {
   const frontendDistPath = path.resolve(__dirname, '../../frontend/dist');
   app.use(express.static(frontendDistPath));
 

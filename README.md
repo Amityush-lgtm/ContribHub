@@ -9,6 +9,7 @@ ContribHub is a MERN full-stack web application that helps open-source mentorshi
 ## Features
 
 ### For Mentees
+- **Automatic GitHub Sync**: Auto-fetch public Pull Requests and import them into ContribHub with pre-filled metadata and PR status
 - Submit structured contribution records with repository links, problem/solution descriptions, tech stack, and evidence
 - Track review status and read mentor feedback
 - Edit or resubmit records when changes are requested
@@ -16,6 +17,7 @@ ContribHub is a MERN full-stack web application that helps open-source mentorshi
 
 ### For Mentors
 - View assigned mentees and their contribution activity
+- **Mentee GitHub Sync**: Refresh assigned mentees' GitHub activity and PR merge statuses on-demand
 - Review queue with filtering by status (pending, approved, revisions, all)
 - Approve, request changes, or reject contributions with detailed feedback
 - Quick review modal for fast evaluations from the dashboard
@@ -28,6 +30,7 @@ ContribHub is a MERN full-stack web application that helps open-source mentorshi
 - Full contribution audit across all participants
 
 ### Platform-Wide
+- Automatic GitHub REST integration for Pull Request search and status sync
 - JWT-based authentication with role-based access control
 - User registration with role selection (mentee/mentor/admin)
 - Profile management with GitHub username and skills
@@ -112,6 +115,41 @@ npm run seed
 ```
 
 Or set `SEED_ON_START=true` in your `.env` and restart the backend.
+
+---
+
+## 🚀 Deploying to Vercel
+
+ContribHub is configured for seamless monorepo deployment on **Vercel** via [`vercel.json`](file:///c:/Users/Amityush/Desktop/Lab/New%20folder/vercel.json) and serverless entrypoint [`api/index.js`](file:///c:/Users/Amityush/Desktop/Lab/New%20folder/api/index.js).
+
+### Step-by-Step Vercel Deployment:
+
+1. **Push your code to GitHub**:
+   Ensure all changes are committed and pushed to your GitHub repository (`Amityush-lgtm/ContribHub`).
+
+2. **Import Project into Vercel**:
+   - Go to [vercel.com](https://vercel.com) and log in.
+   - Click **"Add New..."** $\rightarrow$ **"Project"**.
+   - Select your **`ContribHub`** repository and click **Import**.
+
+3. **Configure Project Settings**:
+   - **Framework Preset**: *Vite* (or *Other*)
+   - **Root Directory**: `./` (leave as default root)
+   - **Build Command**: `npm run build` (or leave default from `vercel.json`)
+   - **Output Directory**: `frontend/dist` (pre-configured in `vercel.json`)
+
+4. **Add Environment Variables**:
+   Under **Environment Variables**, add the following:
+   | Key | Value |
+   |---|---|
+   | `MONGODB_URI` | Your MongoDB Atlas connection string |
+   | `JWT_SECRET` | A secure random string for signing JWTs |
+   | `JWT_EXPIRES_IN` | `7d` |
+   | `NODE_ENV` | `production` |
+   | `GITHUB_TOKEN` | *(Optional)* Your GitHub personal access token for higher sync rate limits |
+
+5. **Click Deploy**:
+   Vercel will build the React SPA, deploy the serverless Express API at `/api`, and give you a live production URL (e.g. `https://contribhub.vercel.app`).
 
 ---
 
