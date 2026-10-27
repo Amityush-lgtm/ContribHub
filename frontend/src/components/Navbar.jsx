@@ -148,22 +148,6 @@ export const Navbar = () => {
               </Link>
             </div>
 
-            <a
-              href="https://github.com/Amityush-lgtm/ContribHub"
-              target="_blank"
-              rel="noreferrer"
-              className="btn btn-outline btn-sm"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                color: 'var(--text-secondary)'
-              }}
-              title="View on GitHub"
-            >
-              <Github size={15} />
-              <span>GitHub</span>
-            </a>
 
             <button
               onClick={handleLogout}

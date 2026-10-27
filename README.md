@@ -1,112 +1,290 @@
-# ContribHub — Open-Source Mentorship & Contribution Management
+# ContribHub
 
-[![GitHub Repository](https://img.shields.io/badge/GitHub-Amityush--lgtm%2FContribHub-blue?logo=github)](https://github.com/Amityush-lgtm/ContribHub)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+**Open-Source Mentorship & Contribution Management Platform**
 
-> **Phase 1: Foundation and Access Control — COMPLETED**  
-> **Phase 2: Contribution Management — COMPLETED**  
-> **Phase 3: Mentor Review & Evaluation Workflow — COMPLETED**  
-> **Phase 4: Admin Governance & Dashboards — COMPLETED**
-
-ContribHub is a modern full-stack MERN application designed for open-source mentorship programmes (e.g. college open-source clubs, developer communities). It provides structured tracking of contributions, mentor evaluation workflows, and administrative cohort governance.
-
-GitHub remains the source of truth for code, issues, commits, and pull requests. ContribHub provides the structured mentorship and reporting layer around that work.
+ContribHub is a MERN full-stack web application that helps open-source mentorship programmes manage contributions, mentor reviews, and participant tracking — all in one place.
 
 ---
 
-## 🌟 Architecture & Completed Phases
+## Features
 
-### Phase 1: Foundation & RBAC
-- **Authentication**: JWT token-based authentication and secure `bcryptjs` password hashing.
-- **Account Registration & Login**: Users can register as Mentees or Mentors with their GitHub usernames, skills, and interests.
-- **Role-Based Access Control**: Server-enforced role restrictions across `Admin`, `Mentor`, and `Mentee`.
-- **Database**: Mongoose models (`User`, `MentorshipAssignment`, `Contribution`) with graceful fallback to MongoMemoryServer for development.
-- **Frontend Core**: React 18 + Vite, custom glassmorphic CSS design system, Google Fonts (*Outfit* and *Plus Jakarta Sans*), and `ProtectedRoute` guard with 403 / 404 handling.
+### For Mentees
+- Submit structured contribution records with repository links, problem/solution descriptions, tech stack, and evidence
+- Track review status and read mentor feedback
+- Edit or resubmit records when changes are requested
+- View personal contribution history and progress summary
 
-### Phase 2: Contribution Management
-- **Structured Contribution Records**:
-  - Title, short summary, repository name, repository URL.
-  - Pull Request URL, Issue URL, and actual GitHub PR status (`open`, `review_requested`, `merged`, `closed`).
-  - Contribution type (`bug_fix`, `feature`, `documentation`, `testing`, `refactoring`, `research`, `other`).
-  - Technologies & frameworks used.
-  - Technical problem solved & architectural solution implemented.
-  - Validation checks performed (test suites, benchmarks, verification).
-  - Outcome / impact & evidence links.
-- **Workflow & Lifecycle**:
-  - `Draft` ➔ `Submitted` ➔ `Changes Requested` ➔ `Approved` / `Rejected`.
-  - Mentees can save drafts, edit existing drafts or revisions, submit records for mentor review, and delete drafts.
-- **Role-Aware Scoping & Inspection**:
-  - Mentees only see and manage their own submissions.
-  - Mentors only see submissions from mentees assigned to their cohort.
-  - Admins can monitor cohort-wide activity.
+### For Mentors
+- View assigned mentees and their contribution activity
+- Review queue with filtering by status (pending, approved, revisions, all)
+- Approve, request changes, or reject contributions with detailed feedback
+- Quick review modal for fast evaluations from the dashboard
 
-### Phase 3: Mentor Review & Evaluation Workflow
-- **Mentor Evaluation Actions**:
-  - `POST /api/contributions/:id/review`: Assigned mentors or administrators can evaluate submissions with choices:
-    - **Approve**: Marks contribution validated for programme tracking.
-    - **Request Changes**: Requires constructive feedback and returns record to the mentee for revision.
-    - **Reject with Reason**: Records formal rejection rationale.
-- **Audit History & Timestamps**:
-  - Every review action records `reviewedBy`, `reviewedAt`, `mentorFeedback`, and appends to an auditable `reviewHistory` timeline.
-- **Interactive Review UI**:
-  - Contribution details page includes a dedicated **Mentor Evaluation Panel** for reviewing code problem, solution, validation, and evidence links.
-  - Quick Evaluation modal directly on the Mentor Dashboard.
-  - Status pipeline filters on Mentor Dashboard: Pending Review, Approved, Revisions Requested, All.
-  - Real-time mentee revision alert banner guiding mentees to edit and resubmit revised records.
+### For Admins
+- Programme-wide analytics dashboard with contribution pipeline breakdown
+- User directory with search, role filtering, and status management
+- Provision new user accounts with role-based permissions
+- Create and manage mentor-mentee pairings across cohorts
+- Full contribution audit across all participants
 
-### Phase 4: Admin Governance & Dashboards
-- **Cohort Analytics & Overview**:
-  - Centralized `/api/dashboard/admin` analytics API returning user distribution, active cohorts, contribution pipelines, and contribution type distributions.
-  - Visual summary cards and recent cohort activity feed.
-- **User Provisioning & Role Management**:
-  - Admin directory with live search by name, email, or GitHub username.
-  - Role filters (`Admin`, `Mentor`, `Mentee`) and status filters (`Active`, `Inactive`).
-  - Provision User modal to create accounts with custom credentials and roles.
-  - Edit User modal to update roles, GitHub handles, or activate/deactivate accounts.
-  - Safe user deletion that cleans up orphaned assignments.
-- **Mentorship Pairing Management**:
-  - Interface to assign mentees to mentors with custom cohort names.
-  - Toggle pairing status (`active` ➔ `completed`) or delete pairings.
-- **Cohort Submissions Inspector**:
-  - Platform-wide inspection table with status and keyword filters allowing administrators to audit all records.
+### Platform-Wide
+- JWT-based authentication with role-based access control
+- User registration with role selection (mentee/mentor/admin)
+- Profile management with GitHub username and skills
+- Contribution detail pages with review history audit trail
+- Search and filtering across all views
+- Responsive glassmorphism dark-mode UI
 
 ---
 
-## 🚀 Running the Project
+## Tech Stack
+
+| Layer      | Technology                          |
+|------------|-------------------------------------|
+| Frontend   | React 18, Vite, React Router v6     |
+| Styling    | Custom CSS (dark glassmorphism)     |
+| Icons      | Lucide React                        |
+| Backend    | Node.js, Express                    |
+| Database   | MongoDB + Mongoose                  |
+| Auth       | JWT + bcrypt password hashing       |
+| Dev DB     | MongoMemoryServer (auto-fallback)   |
+
+---
+
+## Quick Start (Development)
 
 ### Prerequisites
-- Node.js (v18+)
-- npm (v9+)
+- **Node.js** v18+ and **npm**
+- **MongoDB** (optional — the app auto-falls back to an in-memory database)
 
-### 1. Start Backend API
+### 1. Clone the repository
+
 ```bash
-cd backend
-npm run dev
-# Server will run on http://localhost:5000
+git clone https://github.com/Amityush-lgtm/ContribHub.git
+cd ContribHub
 ```
-*Note: If MongoDB Atlas connection is configured in `backend/.env`, it will connect securely. If no URI is provided, an automatic In-Memory MongoDB server starts seamlessly.*
 
-### 2. Start Frontend App
+### 2. Install dependencies
+
 ```bash
-cd frontend
-npm run dev
-# Vite dev server will run on http://localhost:5173
+# Install all (backend + frontend)
+npm run install:all
+```
+
+Or install separately:
+```bash
+cd backend && npm install
+cd ../frontend && npm install
+```
+
+### 3. Configure environment (optional)
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+Edit `backend/.env` with your values. If you leave `MONGODB_URI` empty, the app automatically uses an in-memory MongoDB instance — perfect for quick development.
+
+### 4. Start development servers
+
+In two separate terminals:
+
+```bash
+# Terminal 1: Backend API (port 5000)
+npm run dev:backend
+
+# Terminal 2: Frontend (port 5173)
+npm run dev:frontend
+```
+
+The frontend proxies API requests to the backend automatically via Vite.
+
+### 5. Open the app
+
+Visit **http://localhost:5173** in your browser.
+
+### 6. Seed demo data (optional)
+
+To populate the database with sample users, assignments, and contributions:
+
+```bash
+npm run seed
+```
+
+Or set `SEED_ON_START=true` in your `.env` and restart the backend.
+
+---
+
+## Default Demo Accounts (after seeding)
+
+| Role    | Email                   | Password       |
+|---------|-------------------------|----------------|
+| Admin   | admin@contribhub.dev    | Password123!   |
+| Mentor  | mentor@contribhub.dev   | Password123!   |
+| Mentee  | mentee@contribhub.dev   | Password123!   |
+| Mentee  | maya@contribhub.dev     | Password123!   |
+
+> You can also create new accounts from the login page using the **Create Account** tab.
+
+---
+
+## Production Deployment
+
+### Build for production
+
+```bash
+# Build the frontend
+npm run build
+
+# Set environment to production
+# In backend/.env:
+#   NODE_ENV=production
+#   MONGODB_URI=mongodb+srv://<user>:<pass>@<cluster>.mongodb.net/contribhub
+#   JWT_SECRET=<strong-random-secret>
+
+# Start the production server (serves both API + frontend)
+npm run start
+```
+
+In production mode, the Express backend serves the React frontend from `frontend/dist/` — no separate frontend server needed.
+
+### Deploy to Render / Railway / Fly.io
+
+1. Set the **Root Directory** to the project root
+2. **Build Command:** `npm --prefix frontend run build`
+3. **Start Command:** `NODE_ENV=production node backend/src/server.js`
+4. **Environment Variables:**
+   - `NODE_ENV` = `production`
+   - `MONGODB_URI` = your MongoDB Atlas connection string
+   - `JWT_SECRET` = a strong random string (use `openssl rand -hex 32`)
+   - `PORT` = (usually auto-set by the platform)
+
+---
+
+## API Endpoints
+
+### Authentication
+| Method | Route                | Description                  |
+|--------|----------------------|------------------------------|
+| POST   | `/api/auth/login`    | Login with email & password  |
+| POST   | `/api/auth/register` | Create a new account         |
+| POST   | `/api/auth/logout`   | Logout (clear session)       |
+| GET    | `/api/auth/me`       | Get current user profile     |
+| PATCH  | `/api/auth/profile`  | Update profile details       |
+
+### Users (Admin only)
+| Method | Route                | Description                  |
+|--------|----------------------|------------------------------|
+| GET    | `/api/users`         | List all users               |
+| POST   | `/api/users`         | Provision a new user         |
+| PATCH  | `/api/users/:id`     | Update user role/status      |
+| DELETE | `/api/users/:id`     | Delete user and assignments  |
+
+### Contributions
+| Method | Route                           | Description                      |
+|--------|---------------------------------|----------------------------------|
+| POST   | `/api/contributions`            | Create a contribution            |
+| GET    | `/api/contributions/mine`       | List current user's records      |
+| GET    | `/api/contributions`            | List role-filtered records       |
+| GET    | `/api/contributions/:id`        | Get contribution detail          |
+| PATCH  | `/api/contributions/:id`        | Update contribution fields       |
+| POST   | `/api/contributions/:id/submit` | Submit draft for review          |
+| DELETE | `/api/contributions/:id`        | Delete a draft contribution      |
+| POST   | `/api/contributions/:id/review` | Mentor: evaluate a submission    |
+
+### Assignments (Admin only)
+| Method | Route                    | Description                    |
+|--------|--------------------------|--------------------------------|
+| GET    | `/api/assignments`       | List role-filtered assignments |
+| POST   | `/api/assignments`       | Create mentor-mentee pairing   |
+| PATCH  | `/api/assignments/:id`   | Update assignment status       |
+| DELETE | `/api/assignments/:id`   | Delete assignment              |
+
+### Dashboards
+| Method | Route                    | Description                    |
+|--------|--------------------------|--------------------------------|
+| GET    | `/api/dashboard/mentee`  | Mentee portfolio summary       |
+| GET    | `/api/dashboard/mentor`  | Mentor review queue & mentees  |
+| GET    | `/api/dashboard/admin`   | Programme-wide analytics       |
+
+### Utility
+| Method | Route           | Description              |
+|--------|-----------------|--------------------------|
+| GET    | `/api/health`   | Server health check      |
+
+---
+
+## Project Structure
+
+```
+ContribHub/
+├── backend/
+│   ├── src/
+│   │   ├── config/          # Database connection (MongoDB / in-memory)
+│   │   ├── controllers/     # Route handlers (auth, user, contribution, etc.)
+│   │   ├── middleware/       # Auth (JWT), role guards, error handler
+│   │   ├── models/          # Mongoose schemas (User, Contribution, Assignment)
+│   │   ├── routes/          # Express route definitions
+│   │   ├── app.js           # Express app setup, middleware, static serving
+│   │   ├── server.js        # Entry point, DB connection, server start
+│   │   └── seed.js          # Demo data seeder
+│   ├── .env.example
+│   └── package.json
+├── frontend/
+│   ├── src/
+│   │   ├── components/      # Navbar, RoleLayout, ProtectedRoute, StatusBadge
+│   │   ├── context/         # AuthContext (JWT, login, register, apiFetch)
+│   │   ├── pages/           # All page components by role
+│   │   │   ├── admin/       # AdminDashboard
+│   │   │   ├── mentor/      # MentorDashboard
+│   │   │   ├── mentee/      # MenteeDashboard, ContributionFormPage
+│   │   │   └── contributions/ # ContributionDetailPage
+│   │   ├── App.jsx          # Routes & role-based navigation
+│   │   └── main.jsx         # React entry point
+│   ├── index.html
+│   ├── vite.config.js
+│   └── package.json
+├── package.json             # Root scripts (dev, build, deploy)
+├── .gitignore
+└── README.md
 ```
 
 ---
 
-## 👥 User Accounts & Testing
+## Security Notes
 
-- **Sign In / Create Account**: Visit `http://localhost:5173/login` to sign in or register with your name, email, password, role, and GitHub username.
-- **Optional Demo Seeding**: If you want to seed sample demo accounts (Admin, Mentor, Mentee) and a demo contribution for testing, run:
-  ```bash
-  cd backend
-  node src/seed.js
-  ```
+- Passwords are hashed with **bcrypt** before storage
+- Authentication uses **JWT tokens** (stored in localStorage and cookies)
+- Every API route enforces **server-side role verification** — not just frontend guards
+- Mentors can only review contributions from their **assigned mentees**
+- Mentees cannot access other mentees' private records
+- Admin operations are restricted to the `admin` role at the middleware level
 
 ---
 
-## 📋 Next Phase: Phase 5 (Testing, Deployment & Pilot)
-- Access-control edge case tests and validation checks.
-- Deployment configuration (Render / Railway / Vercel).
-- Pilot testing with a small mentor-mentee group.
+## Phased Development
+
+| Phase | Description                          | Status |
+|-------|--------------------------------------|--------|
+| 1     | Foundation & access control          | ✅     |
+| 2     | Contribution management              | ✅     |
+| 3     | Mentor review workflow               | ✅     |
+| 4     | Admin management & dashboards        | ✅     |
+| 5     | Testing, deployment & pilot          | ✅     |
+| 6     | Enhancements after validation        | 🔜     |
+
+---
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/new-feature`)
+3. Commit your changes (`git commit -m 'Add new feature'`)
+4. Push to the branch (`git push origin feature/new-feature`)
+5. Open a Pull Request
+
+---
+
+## License
+
+This project is open-source and available for educational and community use.

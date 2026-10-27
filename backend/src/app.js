@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
@@ -9,6 +11,9 @@ import assignmentRoutes from './routes/assignmentRoutes.js';
 import contributionRoutes from './routes/contributionRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -48,7 +53,7 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     timestamp: new Date().toISOString(),
     service: 'ContribHub API',
-    phases: 'Phases 1-4 Complete: Foundation, Contributions, Mentor Evaluation, Admin Management'
+    phases: 'Phases 1-5 Complete: Foundation, Contributions, Mentor Evaluation, Admin Management, Deployment'
   });
 });
 
@@ -58,6 +63,21 @@ app.use('/api/users', userRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/contributions', contributionRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+
+// ---------- Production: serve React frontend ----------
+if (process.env.NODE_ENV === 'production') {
+  const frontendDistPath = path.resolve(__dirname, '../../frontend/dist');
+  app.use(express.static(frontendDistPath));
+
+  // All non-API routes fall through to the React SPA
+  app.get('*', (req, res, next) => {
+    // Only serve index.html for non-API routes
+    if (req.originalUrl.startsWith('/api')) {
+      return next();
+    }
+    res.sendFile(path.join(frontendDistPath, 'index.html'));
+  });
+}
 
 // Error handling
 app.use(notFoundHandler);
