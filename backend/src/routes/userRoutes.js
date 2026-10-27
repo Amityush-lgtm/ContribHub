@@ -3,6 +3,7 @@ import {
   listUsers,
   createUser,
   updateUser,
+  deleteUser,
   getMyMentees
 } from '../controllers/userController.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
@@ -16,5 +17,6 @@ router.get('/my-mentees', requireAuth, requireRole('mentor'), getMyMentees);
 router.get('/', requireAuth, requireRole('admin'), listUsers);
 router.post('/', requireAuth, requireRole('admin'), createUser);
 router.patch('/:id', requireAuth, requireRole('admin'), updateUser);
+router.delete('/:id', requireAuth, requireRole('admin'), deleteUser);
 
 export default router;

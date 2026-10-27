@@ -93,7 +93,27 @@ const contributionSchema = new mongoose.Schema(
     },
     reviewedAt: {
       type: Date
-    }
+    },
+    reviewHistory: [
+      {
+        reviewerId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User'
+        },
+        status: {
+          type: String,
+          enum: ['draft', 'submitted', 'changes_requested', 'approved', 'rejected']
+        },
+        feedback: {
+          type: String,
+          trim: true
+        },
+        reviewedAt: {
+          type: Date,
+          default: Date.now
+        }
+      }
+    ]
   },
   {
     timestamps: true,

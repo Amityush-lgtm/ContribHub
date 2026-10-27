@@ -107,3 +107,27 @@ export const getMyMentees = async (req, res, next) => {
     next(err);
   }
 };
+
+// Admin: delete user and clean up assignments
+export const deleteUser = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    if (id === req.user._id.toString()) {
+      return res.status(400).json({ success: false, message: 'You cannot delete your own admin account.' });
+    }
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    await MentorshipAssignment.deleteMany({
+      $or: [{ mentorId: id }, { menteeId: id }]
+    });
+
+    await user.deleteOne();
+    res.status(200).json({ success: true, message: `User ${user.name} and related assignments removed.` });
+  } catch (err) {
+    next(err);
+  }
+};

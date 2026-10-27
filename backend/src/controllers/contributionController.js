@@ -190,7 +190,8 @@ export const getContributionById = async (req, res, next) => {
   try {
     const contribution = await Contribution.findById(req.params.id)
       .populate('menteeId', 'name email skills interests')
-      .populate('reviewedBy', 'name email');
+      .populate('reviewedBy', 'name email')
+      .populate('reviewHistory.reviewerId', 'name email');
 
     if (!contribution) {
       return res.status(404).json({ success: false, message: 'Contribution record not found.' });
@@ -354,6 +355,95 @@ export const deleteContribution = async (req, res, next) => {
 
     await contribution.deleteOne();
     res.status(200).json({ success: true, message: 'Contribution draft deleted successfully.' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// POST /api/contributions/:id/review - Mentor evaluation action
+export const reviewContribution = async (req, res, next) => {
+  try {
+    const { reviewStatus, mentorFeedback } = req.body;
+    const { user } = req;
+
+    if (!['approved', 'changes_requested', 'rejected'].includes(reviewStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid review status. Must be approved, changes_requested, or rejected.'
+      });
+    }
+
+    if (['changes_requested', 'rejected'].includes(reviewStatus) && (!mentorFeedback || !mentorFeedback.trim())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Feedback is required when requesting revisions or rejecting a submission.'
+      });
+    }
+
+    const contribution = await Contribution.findById(req.params.id);
+    if (!contribution) {
+      return res.status(404).json({ success: false, message: 'Contribution record not found.' });
+    }
+
+    // Role and assignment check
+    if (user.role === 'mentor') {
+      const isAssigned = await MentorshipAssignment.findOne({
+        mentorId: user._id,
+        menteeId: contribution.menteeId,
+        status: 'active'
+      });
+
+      if (!isAssigned) {
+        return res.status(403).json({
+          success: false,
+          message: 'Forbidden: You can only review contributions from your directly assigned mentees.'
+        });
+      }
+    } else if (user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Forbidden: Only assigned mentors or administrators can evaluate contributions.'
+      });
+    }
+
+    const trimmedFeedback = mentorFeedback?.trim() || '';
+    const reviewDate = new Date();
+
+    contribution.reviewStatus = reviewStatus;
+    contribution.mentorFeedback = trimmedFeedback;
+    contribution.reviewedBy = user._id;
+    contribution.reviewedAt = reviewDate;
+
+    if (!Array.isArray(contribution.reviewHistory)) {
+      contribution.reviewHistory = [];
+    }
+    contribution.reviewHistory.push({
+      reviewerId: user._id,
+      status: reviewStatus,
+      feedback: trimmedFeedback,
+      reviewedAt: reviewDate
+    });
+
+    await contribution.save();
+
+    await contribution.populate([
+      { path: 'menteeId', select: 'name email skills interests' },
+      { path: 'reviewedBy', select: 'name email' },
+      { path: 'reviewHistory.reviewerId', select: 'name email' }
+    ]);
+
+    const statusMessage =
+      reviewStatus === 'approved'
+        ? 'Contribution approved successfully!'
+        : reviewStatus === 'changes_requested'
+        ? 'Revisions requested from mentee.'
+        : 'Contribution rejected with feedback.';
+
+    res.status(200).json({
+      success: true,
+      message: statusMessage,
+      contribution
+    });
   } catch (err) {
     next(err);
   }

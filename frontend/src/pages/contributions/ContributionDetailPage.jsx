@@ -20,7 +20,13 @@ import {
   User,
   Calendar,
   Layers,
-  Sparkles
+  Sparkles,
+  ShieldCheck,
+  Compass,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  History
 } from 'lucide-react';
 
 export const ContributionDetailPage = () => {
@@ -33,11 +39,21 @@ export const ContributionDetailPage = () => {
   const [errorMsg, setErrorMsg] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
+  // Review panel state for Mentor/Admin
+  const [reviewDecision, setReviewDecision] = useState('approved'); // 'approved' | 'changes_requested' | 'rejected'
+  const [feedbackText, setFeedbackText] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewSuccessMsg, setReviewSuccessMsg] = useState('');
+  const [reviewErrorMsg, setReviewErrorMsg] = useState('');
+
   const fetchContribution = async () => {
     try {
       setLoading(true);
       const res = await apiFetch(`/api/contributions/${id}`);
       setContribution(res.contribution);
+      if (res.contribution?.mentorFeedback) {
+        setFeedbackText(res.contribution.mentorFeedback);
+      }
     } catch (err) {
       setErrorMsg(err.message || 'Failed to load contribution.');
     } finally {
@@ -74,6 +90,36 @@ export const ContributionDetailPage = () => {
     }
   };
 
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    setReviewErrorMsg('');
+    setReviewSuccessMsg('');
+
+    if (['changes_requested', 'rejected'].includes(reviewDecision) && !feedbackText.trim()) {
+      setReviewErrorMsg('Feedback explanation is required when requesting revisions or rejecting.');
+      return;
+    }
+
+    setReviewSubmitting(true);
+    try {
+      const res = await apiFetch(`/api/contributions/${id}/review`, {
+        method: 'POST',
+        body: JSON.stringify({
+          reviewStatus: reviewDecision,
+          mentorFeedback: feedbackText.trim()
+        })
+      });
+
+      setReviewSuccessMsg(res.message || 'Review successfully submitted!');
+      setContribution(res.contribution);
+      setTimeout(() => setReviewSuccessMsg(''), 4000);
+    } catch (err) {
+      setReviewErrorMsg(err.message || 'Failed to submit review.');
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
@@ -99,13 +145,16 @@ export const ContributionDetailPage = () => {
     );
   }
 
-  const isOwner = user?.role === 'mentee' && (contribution.menteeId?._id === user?.id || contribution.menteeId === user?.id);
+  const isOwner =
+    user?.role === 'mentee' &&
+    (contribution.menteeId?._id === user?.id || contribution.menteeId === user?.id || contribution.menteeId?._id === user?._id);
   const canEdit = isOwner && ['draft', 'changes_requested'].includes(contribution.reviewStatus);
   const canSubmit = isOwner && ['draft', 'changes_requested'].includes(contribution.reviewStatus);
   const canDelete = isOwner && contribution.reviewStatus === 'draft';
+  const canReview = user?.role === 'mentor' || user?.role === 'admin';
 
   return (
-    <div style={{ maxWidth: '960px', margin: '0 auto' }}>
+    <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
       {/* Top Navigation */}
       <div style={{
         display: 'flex',
@@ -126,7 +175,7 @@ export const ContributionDetailPage = () => {
 
         {/* Action Controls for Mentee Owner */}
         {isOwner && (
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             {canEdit && (
               <Link to={`/mentee/contributions/edit/${contribution._id}`} className="btn btn-secondary btn-sm">
                 <FileEdit size={14} />
@@ -141,7 +190,7 @@ export const ContributionDetailPage = () => {
                 className="btn btn-primary btn-sm"
               >
                 <Send size={14} />
-                <span>{actionLoading ? 'Submitting...' : 'Submit for Review'}</span>
+                <span>{actionLoading ? 'Submitting...' : contribution.reviewStatus === 'changes_requested' ? 'Submit Revised Record' : 'Submit for Review'}</span>
               </button>
             )}
 
@@ -158,6 +207,42 @@ export const ContributionDetailPage = () => {
           </div>
         )}
       </div>
+
+      {/* Revisions Alert Banner for Mentee */}
+      {isOwner && contribution.reviewStatus === 'changes_requested' && (
+        <div style={{
+          background: 'rgba(245, 158, 11, 0.12)',
+          border: '1px solid rgba(245, 158, 11, 0.35)',
+          borderRadius: 'var(--radius-md)',
+          padding: '1.25rem 1.5rem',
+          marginBottom: '1.5rem',
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: '1rem',
+          flexWrap: 'wrap'
+        }}>
+          <div style={{ display: 'flex', gap: '0.75rem', flex: 1, minWidth: '280px' }}>
+            <AlertTriangle size={24} style={{ color: '#fbbf24', flexShrink: 0, marginTop: '2px' }} />
+            <div>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#fbbf24', marginBottom: '0.25rem' }}>
+                Mentor Revisions Requested
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.5 }}>
+                Your mentor has reviewed this submission and requested revisions. Please edit the required fields below and click <strong>Submit Revised Record</strong> when done.
+              </p>
+            </div>
+          </div>
+          <Link
+            to={`/mentee/contributions/edit/${contribution._id}`}
+            className="btn btn-primary btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+          >
+            <FileEdit size={14} />
+            <span>Edit Record Now</span>
+          </Link>
+        </div>
+      )}
 
       {/* Hero Card */}
       <div className="glass-panel" style={{ padding: '2rem', marginBottom: '1.5rem' }}>
@@ -220,6 +305,16 @@ export const ContributionDetailPage = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <User size={14} />
               <span>Mentee: <strong>{contribution.menteeId.name}</strong></span>
+              {contribution.menteeId.githubUsername && (
+                <a
+                  href={`https://github.com/${contribution.menteeId.githubUsername}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: 'var(--accent-cyan)', fontSize: '0.775rem' }}
+                >
+                  (@{contribution.menteeId.githubUsername})
+                </a>
+              )}
             </div>
           )}
 
@@ -230,8 +325,172 @@ export const ContributionDetailPage = () => {
         </div>
       </div>
 
-      {/* Mentor Feedback Banner (If feedback exists) */}
-      {contribution.mentorFeedback && (
+      {/* PHASE 3: Mentor Evaluation Panel (Visible to Mentor & Admin) */}
+      {canReview && (
+        <div className="glass-panel" style={{
+          padding: '1.75rem',
+          marginBottom: '1.75rem',
+          border: '1px solid rgba(99, 102, 241, 0.4)',
+          background: 'rgba(15, 23, 42, 0.9)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Compass size={20} style={{ color: 'var(--accent-cyan)' }} />
+              <span>Mentor Evaluation & Feedback (Phase 3)</span>
+            </h2>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              Current Status: <strong style={{ color: 'var(--text-primary)', textTransform: 'capitalize' }}>{contribution.reviewStatus.replace('_', ' ')}</strong>
+            </span>
+          </div>
+
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.25rem' }}>
+            Review the mentee's problem formulation, code modifications, validation tests, and evidence links against programme standards.
+          </p>
+
+          {reviewErrorMsg && (
+            <div style={{
+              padding: '0.75rem 1rem',
+              background: 'var(--danger-light)',
+              color: '#f87171',
+              borderRadius: 'var(--radius-sm)',
+              marginBottom: '1rem',
+              fontSize: '0.85rem'
+            }}>
+              {reviewErrorMsg}
+            </div>
+          )}
+
+          {reviewSuccessMsg && (
+            <div style={{
+              padding: '0.75rem 1rem',
+              background: 'var(--success-light)',
+              color: '#34d399',
+              borderRadius: 'var(--radius-sm)',
+              marginBottom: '1rem',
+              fontSize: '0.85rem'
+            }}>
+              {reviewSuccessMsg}
+            </div>
+          )}
+
+          <form onSubmit={handleReviewSubmit}>
+            {/* Review Decision Selector */}
+            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+              <label className="form-label" style={{ fontWeight: 700 }}>
+                Evaluation Decision *
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setReviewDecision('approved')}
+                  style={{
+                    padding: '0.85rem 1rem',
+                    borderRadius: 'var(--radius-sm)',
+                    border: reviewDecision === 'approved' ? '2px solid #10b981' : '1px solid var(--border-color)',
+                    background: reviewDecision === 'approved' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(15, 23, 42, 0.6)',
+                    color: reviewDecision === 'approved' ? '#6ee7b7' : 'var(--text-secondary)',
+                    fontWeight: 700,
+                    fontSize: '0.875rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <CheckCircle size={18} />
+                  <span>Approve Record</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setReviewDecision('changes_requested')}
+                  style={{
+                    padding: '0.85rem 1rem',
+                    borderRadius: 'var(--radius-sm)',
+                    border: reviewDecision === 'changes_requested' ? '2px solid #f59e0b' : '1px solid var(--border-color)',
+                    background: reviewDecision === 'changes_requested' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(15, 23, 42, 0.6)',
+                    color: reviewDecision === 'changes_requested' ? '#fbbf24' : 'var(--text-secondary)',
+                    fontWeight: 700,
+                    fontSize: '0.875rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <AlertTriangle size={18} />
+                  <span>Request Changes</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setReviewDecision('rejected')}
+                  style={{
+                    padding: '0.85rem 1rem',
+                    borderRadius: 'var(--radius-sm)',
+                    border: reviewDecision === 'rejected' ? '2px solid #ef4444' : '1px solid var(--border-color)',
+                    background: reviewDecision === 'rejected' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(15, 23, 42, 0.6)',
+                    color: reviewDecision === 'rejected' ? '#f87171' : 'var(--text-secondary)',
+                    fontWeight: 700,
+                    fontSize: '0.875rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <XCircle size={18} />
+                  <span>Reject Submission</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Feedback / Instructions textarea */}
+            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+              <label className="form-label" style={{ fontWeight: 700 }}>
+                Mentor Guidance & Technical Feedback {reviewDecision !== 'approved' && '*'}
+              </label>
+              <textarea
+                rows={4}
+                required={reviewDecision !== 'approved'}
+                value={feedbackText}
+                onChange={(e) => setFeedbackText(e.target.value)}
+                placeholder={
+                  reviewDecision === 'approved'
+                    ? 'Optional positive commentary or recommendations for next contribution steps...'
+                    : 'Explain specifically what needs revision: missing test cases, incomplete problem statement, PR changes...'
+                }
+                className="form-control"
+                style={{ resize: 'vertical' }}
+              />
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem', display: 'block' }}>
+                Visible to the mentee on their portfolio dashboard and record details view.
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <button
+                type="submit"
+                disabled={reviewSubmitting}
+                className="btn btn-primary"
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1.25rem' }}
+              >
+                <ShieldCheck size={16} />
+                <span>{reviewSubmitting ? 'Submitting Evaluation...' : 'Save Evaluation'}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Mentor Feedback Banner (For Mentee or Archive) */}
+      {!canReview && contribution.mentorFeedback && (
         <div className="glass-panel" style={{
           padding: '1.5rem',
           marginBottom: '1.5rem',
@@ -240,7 +499,7 @@ export const ContributionDetailPage = () => {
         }}>
           <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
             <MessageSquare size={16} />
-            <span>Mentor Feedback</span>
+            <span>Mentor Feedback & Guidance</span>
           </h3>
           <p style={{ color: 'var(--text-primary)', fontSize: '0.925rem', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
             {contribution.mentorFeedback}
@@ -254,7 +513,7 @@ export const ContributionDetailPage = () => {
       )}
 
       {/* Main Details Grid: 2 Columns */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem', alignItems: 'start', marginBottom: '2rem' }}>
         {/* Left Column: Problem & Solution Deep Dive */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {/* Problem */}
@@ -389,6 +648,50 @@ export const ContributionDetailPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Review History / Audit Trail Timeline */}
+      {contribution.reviewHistory && contribution.reviewHistory.length > 0 && (
+        <div className="glass-panel" style={{ padding: '1.75rem', marginBottom: '2rem' }}>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <History size={18} style={{ color: 'var(--primary)' }} />
+            <span>Evaluation Audit Timeline ({contribution.reviewHistory.length})</span>
+          </h3>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {contribution.reviewHistory.slice().reverse().map((entry, idx) => (
+              <div
+                key={idx}
+                style={{
+                  padding: '1rem',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'rgba(15, 23, 42, 0.5)',
+                  border: '1px solid var(--border-color)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.5rem'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                    <ReviewStatusBadge status={entry.status} />
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                      Evaluated by {entry.reviewerId?.name || 'Mentor'}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    {new Date(entry.reviewedAt).toLocaleString()}
+                  </span>
+                </div>
+                {entry.feedback && (
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', margin: 0, paddingLeft: '0.5rem', borderLeft: '2px solid var(--border-color)' }}>
+                    {entry.feedback}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

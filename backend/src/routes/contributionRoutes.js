@@ -6,7 +6,8 @@ import {
   getContributionById,
   updateContribution,
   submitContribution,
-  deleteContribution
+  deleteContribution,
+  reviewContribution
 } from '../controllers/contributionController.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 
@@ -21,6 +22,7 @@ router.get('/', getContributions);
 router.get('/:id', getContributionById);
 router.patch('/:id', updateContribution);
 router.post('/:id/submit', submitContribution);
+router.post('/:id/review', requireRole('mentor', 'admin'), reviewContribution);
 router.delete('/:id', deleteContribution);
 
 export default router;

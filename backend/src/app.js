@@ -7,6 +7,7 @@ import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import assignmentRoutes from './routes/assignmentRoutes.js';
 import contributionRoutes from './routes/contributionRoutes.js';
+import dashboardRoutes from './routes/dashboardRoutes.js';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
@@ -47,7 +48,7 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     timestamp: new Date().toISOString(),
     service: 'ContribHub API',
-    phase: 'Phase 2: Contribution Management'
+    phases: 'Phases 1-4 Complete: Foundation, Contributions, Mentor Evaluation, Admin Management'
   });
 });
 
@@ -56,6 +57,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/contributions', contributionRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Error handling
 app.use(notFoundHandler);

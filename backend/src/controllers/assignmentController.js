@@ -92,3 +92,18 @@ export const updateAssignment = async (req, res, next) => {
     next(err);
   }
 };
+
+// Delete assignment (Admin only)
+export const deleteAssignment = async (req, res, next) => {
+  try {
+    const assignment = await MentorshipAssignment.findById(req.params.id);
+    if (!assignment) {
+      return res.status(404).json({ success: false, message: 'Assignment not found.' });
+    }
+
+    await assignment.deleteOne();
+    res.status(200).json({ success: true, message: 'Mentorship assignment deleted.' });
+  } catch (err) {
+    next(err);
+  }
+};

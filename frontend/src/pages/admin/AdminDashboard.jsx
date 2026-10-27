@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import {
+  ReviewStatusBadge,
+  PRStatusBadge,
+  ContributionTypeBadge
+} from '../../components/StatusBadge';
 import {
   Users,
   UserPlus,
@@ -14,20 +20,37 @@ import {
   Award,
   Layers,
   Calendar,
-  Sparkles
+  Sparkles,
+  Trash2,
+  Edit,
+  GitPullRequest,
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
+  BarChart3,
+  ExternalLink,
+  Github,
+  Eye
 } from 'lucide-react';
 
 export const AdminDashboard = () => {
   const { apiFetch, user } = useAuth();
 
+  const [dashboardData, setDashboardData] = useState(null);
   const [users, setUsers] = useState([]);
   const [assignments, setAssignments] = useState([]);
+  const [contributions, setContributions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('users'); // 'users' or 'assignments'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'users' | 'assignments' | 'contributions'
 
-  // Filter state
-  const [search, setSearch] = useState('');
+  // User filter state
+  const [userSearch, setUserSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+
+  // Contribution filter state
+  const [contribSearch, setContribSearch] = useState('');
+  const [contribStatusFilter, setContribStatusFilter] = useState('all');
 
   // Provision user modal state
   const [showUserModal, setShowUserModal] = useState(false);
@@ -36,12 +59,23 @@ export const AdminDashboard = () => {
     email: '',
     password: 'Password123!',
     role: 'mentee',
+    githubUsername: '',
     skills: '',
     interests: ''
   });
   const [provisionLoading, setProvisionLoading] = useState(false);
   const [modalError, setModalError] = useState('');
   const [modalSuccess, setModalSuccess] = useState('');
+
+  // Edit user modal state
+  const [editingUser, setEditingUser] = useState(null);
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    role: 'mentee',
+    githubUsername: '',
+    isActive: true
+  });
+  const [editLoading, setEditLoading] = useState(false);
 
   // Create assignment modal state
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -56,12 +90,17 @@ export const AdminDashboard = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [usersData, assignmentsData] = await Promise.all([
+      const [dashRes, usersData, assignmentsData, contribsData] = await Promise.all([
+        apiFetch('/api/dashboard/admin'),
         apiFetch('/api/users'),
-        apiFetch('/api/assignments')
+        apiFetch('/api/assignments'),
+        apiFetch('/api/contributions')
       ]);
+
+      setDashboardData(dashRes);
       setUsers(usersData.users || []);
       setAssignments(assignmentsData.assignments || []);
+      setContributions(contribsData.contributions || []);
     } catch (err) {
       console.error('Failed to load admin data:', err);
     } finally {
@@ -85,6 +124,7 @@ export const AdminDashboard = () => {
         email: newUser.email,
         password: newUser.password,
         role: newUser.role,
+        githubUsername: newUser.githubUsername,
         skills: newUser.skills ? newUser.skills.split(',').map((s) => s.trim()).filter(Boolean) : [],
         interests: newUser.interests ? newUser.interests.split(',').map((i) => i.trim()).filter(Boolean) : []
       };
@@ -100,6 +140,7 @@ export const AdminDashboard = () => {
         email: '',
         password: 'Password123!',
         role: 'mentee',
+        githubUsername: '',
         skills: '',
         interests: ''
       });
@@ -112,6 +153,43 @@ export const AdminDashboard = () => {
       setModalError(err.message || 'Failed to create user');
     } finally {
       setProvisionLoading(false);
+    }
+  };
+
+  const handleOpenEditUser = (targetUser) => {
+    setEditingUser(targetUser);
+    setEditFormData({
+      name: targetUser.name,
+      role: targetUser.role,
+      githubUsername: targetUser.githubUsername || '',
+      isActive: targetUser.isActive
+    });
+  };
+
+  const handleSaveEditUser = async (e) => {
+    e.preventDefault();
+    setEditLoading(true);
+    try {
+      await apiFetch(`/api/users/${editingUser._id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(editFormData)
+      });
+      setEditingUser(null);
+      await loadData();
+    } catch (err) {
+      alert(`Failed to update user: ${err.message}`);
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId, userName) => {
+    if (!window.confirm(`Are you sure you want to permanently delete user "${userName}"? This will also remove any associated pairings.`)) return;
+    try {
+      await apiFetch(`/api/users/${userId}`, { method: 'DELETE' });
+      await loadData();
+    } catch (err) {
+      alert(`Failed to delete user: ${err.message}`);
     }
   };
 
@@ -140,6 +218,29 @@ export const AdminDashboard = () => {
     }
   };
 
+  const handleToggleAssignmentStatus = async (assignId, currentStatus) => {
+    try {
+      const newStatus = currentStatus === 'active' ? 'completed' : 'active';
+      await apiFetch(`/api/assignments/${assignId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: newStatus })
+      });
+      await loadData();
+    } catch (err) {
+      alert(`Failed to update assignment status: ${err.message}`);
+    }
+  };
+
+  const handleDeleteAssignment = async (assignId) => {
+    if (!window.confirm('Delete this mentorship assignment?')) return;
+    try {
+      await apiFetch(`/api/assignments/${assignId}`, { method: 'DELETE' });
+      await loadData();
+    } catch (err) {
+      alert(`Failed to delete assignment: ${err.message}`);
+    }
+  };
+
   const handleToggleUserStatus = async (userId, currentStatus) => {
     try {
       await apiFetch(`/api/users/${userId}`, {
@@ -155,15 +256,30 @@ export const AdminDashboard = () => {
   // Filtered users
   const filteredUsers = users.filter((u) => {
     const matchesRole = !roleFilter || u.role === roleFilter;
+    const matchesStatus = !statusFilter || (statusFilter === 'active' ? u.isActive : !u.isActive);
     const matchesSearch =
-      !search ||
-      u.name.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase());
-    return matchesRole && matchesSearch;
+      !userSearch ||
+      u.name.toLowerCase().includes(userSearch.toLowerCase()) ||
+      u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
+      (u.githubUsername && u.githubUsername.toLowerCase().includes(userSearch.toLowerCase()));
+    return matchesRole && matchesStatus && matchesSearch;
+  });
+
+  // Filtered contributions
+  const filteredContributions = contributions.filter((c) => {
+    const matchesStatus = contribStatusFilter === 'all' || c.reviewStatus === contribStatusFilter;
+    const matchesSearch =
+      !contribSearch ||
+      c.title.toLowerCase().includes(contribSearch.toLowerCase()) ||
+      c.projectName.toLowerCase().includes(contribSearch.toLowerCase()) ||
+      (c.menteeId?.name && c.menteeId.name.toLowerCase().includes(contribSearch.toLowerCase()));
+    return matchesStatus && matchesSearch;
   });
 
   const mentorsList = users.filter((u) => u.role === 'mentor' && u.isActive);
   const menteesList = users.filter((u) => u.role === 'mentee' && u.isActive);
+
+  const dashStats = dashboardData?.stats;
 
   return (
     <div>
@@ -179,15 +295,15 @@ export const AdminDashboard = () => {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.25rem' }}>
             <span className="badge badge-admin"><Shield size={13} /> Administrator Portal</span>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Phase 1 Foundation</span>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Phase 4: Programme Governance & Dashboards</span>
           </div>
-          <h1 style={{ fontSize: '1.85rem', fontWeight: 800 }}>Cohort Management & Access Control</h1>
+          <h1 style={{ fontSize: '1.85rem', fontWeight: 800 }}>Cohort Administration & Oversight</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.925rem' }}>
-            Manage participants, mentor pairings, role assignments, and platform security.
+            Manage programme participants, mentor-mentee pairings, contribution audit logs, and cohort metrics.
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
           <button
             onClick={() => setShowUserModal(true)}
             className="btn btn-primary"
@@ -202,15 +318,22 @@ export const AdminDashboard = () => {
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
           >
             <LinkIcon size={16} />
-            <span>Assign Mentorship</span>
+            <span>New Mentorship Pairing</span>
+          </button>
+          <button
+            onClick={loadData}
+            className="btn btn-outline btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           </button>
         </div>
       </div>
 
-      {/* Metrics Cards */}
+      {/* Metrics Row */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
         gap: '1.25rem',
         marginBottom: '2rem'
       }}>
@@ -219,9 +342,9 @@ export const AdminDashboard = () => {
             <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Total Accounts</span>
             <Users size={20} style={{ color: 'var(--primary)' }} />
           </div>
-          <div style={{ fontSize: '1.85rem', fontWeight: 800 }}>{users.length}</div>
+          <div style={{ fontSize: '1.85rem', fontWeight: 800 }}>{dashStats?.users?.total || users.length}</div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-            {users.filter(u => u.isActive).length} active participants
+            {dashStats?.users?.active || users.filter(u => u.isActive).length} active participants
           </div>
         </div>
 
@@ -232,7 +355,7 @@ export const AdminDashboard = () => {
           </div>
           <div style={{ fontSize: '1.85rem', fontWeight: 800 }}>{mentorsList.length}</div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-            Guiding open-source mentees
+            Guiding cohort mentees
           </div>
         </div>
 
@@ -256,7 +379,18 @@ export const AdminDashboard = () => {
             {assignments.filter(a => a.status === 'active').length}
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-            Spring 2026 Cohort
+            Across {dashStats?.assignments?.cohorts?.length || 1} cohort(s)
+          </div>
+        </div>
+
+        <div className="glass-panel" style={{ padding: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Contributions</span>
+            <GitPullRequest size={20} style={{ color: '#ec4899' }} />
+          </div>
+          <div style={{ fontSize: '1.85rem', fontWeight: 800 }}>{contributions.length}</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+            {contributions.filter(c => c.reviewStatus === 'approved').length} approved
           </div>
         </div>
       </div>
@@ -264,10 +398,32 @@ export const AdminDashboard = () => {
       {/* Tabs */}
       <div style={{
         display: 'flex',
-        gap: '1rem',
+        gap: '0.5rem',
         borderBottom: '1px solid var(--border-color)',
-        marginBottom: '1.5rem'
+        marginBottom: '1.5rem',
+        overflowX: 'auto'
       }}>
+        <button
+          onClick={() => setActiveTab('overview')}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            borderBottom: activeTab === 'overview' ? '2px solid var(--primary)' : '2px solid transparent',
+            padding: '0.75rem 1rem',
+            color: activeTab === 'overview' ? 'var(--text-primary)' : 'var(--text-secondary)',
+            fontWeight: 700,
+            cursor: 'pointer',
+            fontSize: '0.925rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          <BarChart3 size={17} />
+          <span>Overview & Analytics</span>
+        </button>
+
         <button
           onClick={() => setActiveTab('users')}
           style={{
@@ -276,15 +432,16 @@ export const AdminDashboard = () => {
             borderBottom: activeTab === 'users' ? '2px solid var(--primary)' : '2px solid transparent',
             padding: '0.75rem 1rem',
             color: activeTab === 'users' ? 'var(--text-primary)' : 'var(--text-secondary)',
-            fontWeight: 600,
+            fontWeight: 700,
             cursor: 'pointer',
-            fontSize: '0.95rem',
+            fontSize: '0.925rem',
             display: 'flex',
             alignItems: 'center',
-            gap: '0.5rem'
+            gap: '0.5rem',
+            whiteSpace: 'nowrap'
           }}
         >
-          <Users size={18} />
+          <Users size={17} />
           <span>User Directory ({users.length})</span>
         </button>
 
@@ -296,38 +453,185 @@ export const AdminDashboard = () => {
             borderBottom: activeTab === 'assignments' ? '2px solid var(--primary)' : '2px solid transparent',
             padding: '0.75rem 1rem',
             color: activeTab === 'assignments' ? 'var(--text-primary)' : 'var(--text-secondary)',
-            fontWeight: 600,
+            fontWeight: 700,
             cursor: 'pointer',
-            fontSize: '0.95rem',
+            fontSize: '0.925rem',
             display: 'flex',
             alignItems: 'center',
-            gap: '0.5rem'
+            gap: '0.5rem',
+            whiteSpace: 'nowrap'
           }}
         >
-          <LinkIcon size={18} />
-          <span>Mentorship Assignments ({assignments.length})</span>
+          <LinkIcon size={17} />
+          <span>Mentorship Pairings ({assignments.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('contributions')}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            borderBottom: activeTab === 'contributions' ? '2px solid var(--primary)' : '2px solid transparent',
+            padding: '0.75rem 1rem',
+            color: activeTab === 'contributions' ? 'var(--text-primary)' : 'var(--text-secondary)',
+            fontWeight: 700,
+            cursor: 'pointer',
+            fontSize: '0.925rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          <GitPullRequest size={17} />
+          <span>All Submissions ({contributions.length})</span>
         </button>
       </div>
 
-      {/* Tab 1: Users Table */}
+      {/* TAB 1: OVERVIEW & ANALYTICS */}
+      {activeTab === 'overview' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* Status Breakdown Bar */}
+          <div className="glass-panel" style={{ padding: '1.5rem' }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Sparkles size={18} style={{ color: 'var(--primary)' }} />
+              <span>Contribution Pipeline Breakdown</span>
+            </h3>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div style={{ padding: '1rem', background: 'rgba(15, 23, 42, 0.5)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Approved</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--success)' }}>
+                  {dashStats?.contributions?.approved || 0}
+                </div>
+              </div>
+              <div style={{ padding: '1rem', background: 'rgba(15, 23, 42, 0.5)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Under Review</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--warning)' }}>
+                  {dashStats?.contributions?.submitted || 0}
+                </div>
+              </div>
+              <div style={{ padding: '1rem', background: 'rgba(15, 23, 42, 0.5)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Revisions Requested</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#f43f5e' }}>
+                  {dashStats?.contributions?.changes_requested || 0}
+                </div>
+              </div>
+              <div style={{ padding: '1rem', background: 'rgba(15, 23, 42, 0.5)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Drafts</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)' }}>
+                  {dashStats?.contributions?.draft || 0}
+                </div>
+              </div>
+              <div style={{ padding: '1rem', background: 'rgba(15, 23, 42, 0.5)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Rejected</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--danger)' }}>
+                  {dashStats?.contributions?.rejected || 0}
+                </div>
+              </div>
+            </div>
+
+            {/* Contribution Types */}
+            {dashStats?.contributions?.byType && (
+              <div>
+                <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
+                  Contribution Types Distribution
+                </h4>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  {Object.entries(dashStats.contributions.byType).map(([type, count]) => (
+                    <span
+                      key={type}
+                      style={{
+                        padding: '0.35rem 0.75rem',
+                        borderRadius: '6px',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid var(--border-color)',
+                        fontSize: '0.8rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem'
+                      }}
+                    >
+                      <strong style={{ color: 'var(--text-primary)', textTransform: 'capitalize' }}>{type.replace('_', ' ')}:</strong>
+                      <span style={{ color: 'var(--accent-cyan)' }}>{count}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Recent Submissions Feed */}
+          <div className="glass-panel" style={{ padding: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Recent Cohort Activity Feed</h3>
+              <button onClick={() => setActiveTab('contributions')} className="btn btn-outline btn-sm" style={{ fontSize: '0.75rem' }}>
+                View All
+              </button>
+            </div>
+
+            {contributions.length === 0 ? (
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No activity recorded yet.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {contributions.slice(0, 6).map((c) => (
+                  <div
+                    key={c._id}
+                    style={{
+                      padding: '0.85rem 1rem',
+                      borderRadius: 'var(--radius-sm)',
+                      background: 'rgba(15, 23, 42, 0.5)',
+                      border: '1px solid var(--border-color)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '0.75rem'
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                        <ReviewStatusBadge status={c.reviewStatus} />
+                        <Link to={`/contributions/${c._id}`} style={{ fontWeight: 600, fontSize: '0.925rem', color: 'var(--text-primary)' }}>
+                          {c.title}
+                        </Link>
+                      </div>
+                      <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>
+                        By <strong>{c.menteeId?.name}</strong> • Project: {c.projectName} • Updated {new Date(c.updatedAt).toLocaleDateString()}
+                      </div>
+                    </div>
+
+                    <Link to={`/contributions/${c._id}`} className="btn btn-outline btn-sm" style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem' }}>
+                      <Eye size={13} />
+                      <span>Inspect</span>
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: USERS DIRECTORY */}
       {activeTab === 'users' && (
         <div className="glass-panel" style={{ padding: '1.5rem' }}>
           {/* Controls: Search and Filter */}
           <div style={{
             display: 'flex',
-            gap: '1rem',
+            gap: '0.75rem',
             flexWrap: 'wrap',
             justifyContent: 'space-between',
             marginBottom: '1.5rem'
           }}>
-            <div style={{ display: 'flex', gap: '0.75rem', flex: 1, minWidth: '280px' }}>
-              <div style={{ position: 'relative', flex: 1 }}>
+            <div style={{ display: 'flex', gap: '0.75rem', flex: 1, minWidth: '280px', flexWrap: 'wrap' }}>
+              <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
                 <Search size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                 <input
                   type="text"
-                  placeholder="Search by name or email..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search by name, email, github..."
+                  value={userSearch}
+                  onChange={(e) => setUserSearch(e.target.value)}
                   className="form-control"
                   style={{ paddingLeft: '2.5rem', fontSize: '0.85rem' }}
                 />
@@ -337,22 +641,33 @@ export const AdminDashboard = () => {
                 value={roleFilter}
                 onChange={(e) => setRoleFilter(e.target.value)}
                 className="form-control"
-                style={{ width: 'auto', minWidth: '140px', fontSize: '0.85rem' }}
+                style={{ width: 'auto', minWidth: '130px', fontSize: '0.85rem' }}
               >
                 <option value="">All Roles</option>
                 <option value="admin">Admin</option>
                 <option value="mentor">Mentor</option>
                 <option value="mentee">Mentee</option>
               </select>
+
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="form-control"
+                style={{ width: 'auto', minWidth: '130px', fontSize: '0.85rem' }}
+              >
+                <option value="">All Statuses</option>
+                <option value="active">Active Only</option>
+                <option value="inactive">Inactive Only</option>
+              </select>
             </div>
 
             <button
-              onClick={loadData}
-              className="btn btn-outline btn-sm"
+              onClick={() => setShowUserModal(true)}
+              className="btn btn-primary btn-sm"
               style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
             >
-              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-              <span>Refresh</span>
+              <UserPlus size={14} />
+              <span>Provision User</span>
             </button>
           </div>
 
@@ -363,6 +678,7 @@ export const AdminDashboard = () => {
                 <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   <th style={{ padding: '0.75rem 1rem' }}>User</th>
                   <th style={{ padding: '0.75rem 1rem' }}>Role</th>
+                  <th style={{ padding: '0.75rem 1rem' }}>GitHub</th>
                   <th style={{ padding: '0.75rem 1rem' }}>Skills / Focus</th>
                   <th style={{ padding: '0.75rem 1rem' }}>Status</th>
                   <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Actions</th>
@@ -371,8 +687,8 @@ export const AdminDashboard = () => {
               <tbody>
                 {filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                      No users found matching your search.
+                    <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      No users found matching your filters.
                     </td>
                   </tr>
                 ) : (
@@ -381,8 +697,8 @@ export const AdminDashboard = () => {
                       <td style={{ padding: '1rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                           <div style={{
-                            width: '32px',
-                            height: '32px',
+                            width: '34px',
+                            height: '34px',
                             borderRadius: '50%',
                             background: u.role === 'admin' ? 'rgba(236, 72, 153, 0.2)' : u.role === 'mentor' ? 'rgba(6, 182, 212, 0.2)' : 'rgba(99, 102, 241, 0.2)',
                             color: u.role === 'admin' ? '#f472b6' : u.role === 'mentor' ? '#22d3ee' : '#818cf8',
@@ -390,7 +706,7 @@ export const AdminDashboard = () => {
                             alignItems: 'center',
                             justifyContent: 'center',
                             fontWeight: 700,
-                            fontSize: '0.8rem'
+                            fontSize: '0.85rem'
                           }}>
                             {u.name.charAt(0).toUpperCase()}
                           </div>
@@ -403,7 +719,22 @@ export const AdminDashboard = () => {
                       <td style={{ padding: '1rem' }}>
                         <span className={`badge badge-${u.role}`}>{u.role}</span>
                       </td>
-                      <td style={{ padding: '1rem', maxWidth: '300px' }}>
+                      <td style={{ padding: '1rem' }}>
+                        {u.githubUsername ? (
+                          <a
+                            href={`https://github.com/${u.githubUsername}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: 'var(--accent-cyan)', fontSize: '0.8rem' }}
+                          >
+                            <Github size={13} />
+                            <span>@{u.githubUsername}</span>
+                          </a>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>—</span>
+                        )}
+                      </td>
+                      <td style={{ padding: '1rem', maxWidth: '240px' }}>
                         {u.skills && u.skills.length > 0 ? (
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
                             {u.skills.slice(0, 3).map((s, idx) => (
@@ -433,15 +764,35 @@ export const AdminDashboard = () => {
                         </span>
                       </td>
                       <td style={{ padding: '1rem', textAlign: 'right' }}>
-                        {u._id !== user.id && (
+                        <div style={{ display: 'inline-flex', gap: '0.35rem' }}>
+                          <button
+                            onClick={() => handleOpenEditUser(u)}
+                            className="btn btn-outline btn-sm"
+                            style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                            title="Edit Role / Status"
+                          >
+                            <Edit size={12} />
+                          </button>
+
                           <button
                             onClick={() => handleToggleUserStatus(u._id, u.isActive)}
                             className="btn btn-outline btn-sm"
-                            style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem' }}
+                            style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
                           >
                             {u.isActive ? 'Deactivate' : 'Activate'}
                           </button>
-                        )}
+
+                          {u._id !== user.id && (
+                            <button
+                              onClick={() => handleDeleteUser(u._id, u.name)}
+                              className="btn btn-danger btn-sm"
+                              style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                              title="Delete User"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -452,14 +803,14 @@ export const AdminDashboard = () => {
         </div>
       )}
 
-      {/* Tab 2: Assignments Table */}
+      {/* TAB 3: MENTORSHIP PAIRINGS */}
       {activeTab === 'assignments' && (
         <div className="glass-panel" style={{ padding: '1.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
             <div>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Active Mentorship Pairings</h3>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Mentorship Pairings & Cohort Assignments</h3>
               <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
-                Enforces mentor-mentee relationship visibility rules required by the project plan.
+                Defines which mentors are authorized to inspect and evaluate specific mentee submissions.
               </p>
             </div>
             <button
@@ -468,7 +819,7 @@ export const AdminDashboard = () => {
               style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
             >
               <Plus size={15} />
-              <span>New Pairing</span>
+              <span>Create Pairing</span>
             </button>
           </div>
 
@@ -478,16 +829,17 @@ export const AdminDashboard = () => {
                 <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   <th style={{ padding: '0.75rem 1rem' }}>Mentor</th>
                   <th style={{ padding: '0.75rem 1rem' }}>Mentee</th>
-                  <th style={{ padding: '0.75rem 1rem' }}>Cohort</th>
+                  <th style={{ padding: '0.75rem 1rem' }}>Cohort Name</th>
                   <th style={{ padding: '0.75rem 1rem' }}>Start Date</th>
                   <th style={{ padding: '0.75rem 1rem' }}>Status</th>
+                  <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {assignments.length === 0 ? (
                   <tr>
-                    <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                      No mentorship assignments created yet.
+                    <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      No mentorship pairings configured yet.
                     </td>
                   </tr>
                 ) : (
@@ -519,6 +871,127 @@ export const AdminDashboard = () => {
                         <span className={`badge ${a.status === 'active' ? 'badge-active' : 'badge-inactive'}`}>
                           {a.status}
                         </span>
+                      </td>
+                      <td style={{ padding: '1rem', textAlign: 'right' }}>
+                        <div style={{ display: 'inline-flex', gap: '0.35rem' }}>
+                          <button
+                            onClick={() => handleToggleAssignmentStatus(a._id, a.status)}
+                            className="btn btn-outline btn-sm"
+                            style={{ fontSize: '0.75rem', padding: '0.25rem 0.55rem' }}
+                          >
+                            {a.status === 'active' ? 'Mark Completed' : 'Reactivate'}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteAssignment(a._id)}
+                            className="btn btn-danger btn-sm"
+                            style={{ fontSize: '0.75rem', padding: '0.25rem 0.55rem' }}
+                            title="Delete Pairing"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: ALL CONTRIBUTIONS INSPECTOR */}
+      {activeTab === 'contributions' && (
+        <div className="glass-panel" style={{ padding: '1.5rem' }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '1.5rem',
+            flexWrap: 'wrap',
+            gap: '1rem'
+          }}>
+            <div style={{ display: 'flex', gap: '0.75rem', flex: 1, minWidth: '280px', flexWrap: 'wrap' }}>
+              <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
+                <Search size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                <input
+                  type="text"
+                  placeholder="Search by title, project, mentee..."
+                  value={contribSearch}
+                  onChange={(e) => setContribSearch(e.target.value)}
+                  className="form-control"
+                  style={{ paddingLeft: '2.5rem', fontSize: '0.85rem' }}
+                />
+              </div>
+
+              <select
+                value={contribStatusFilter}
+                onChange={(e) => setContribStatusFilter(e.target.value)}
+                className="form-control"
+                style={{ width: 'auto', minWidth: '150px', fontSize: '0.85rem' }}
+              >
+                <option value="all">All Statuses</option>
+                <option value="submitted">Submitted (Under Review)</option>
+                <option value="approved">Approved</option>
+                <option value="changes_requested">Changes Requested</option>
+                <option value="draft">Drafts</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </div>
+          </div>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <th style={{ padding: '0.75rem 1rem' }}>Status</th>
+                  <th style={{ padding: '0.75rem 1rem' }}>Title & Project</th>
+                  <th style={{ padding: '0.75rem 1rem' }}>Mentee</th>
+                  <th style={{ padding: '0.75rem 1rem' }}>Type</th>
+                  <th style={{ padding: '0.75rem 1rem' }}>PR Status</th>
+                  <th style={{ padding: '0.75rem 1rem' }}>Updated</th>
+                  <th style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>Inspect</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredContributions.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      No contributions found matching your filters.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredContributions.map((c) => (
+                    <tr key={c._id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}>
+                      <td style={{ padding: '1rem' }}>
+                        <ReviewStatusBadge status={c.reviewStatus} />
+                      </td>
+                      <td style={{ padding: '1rem' }}>
+                        <Link to={`/contributions/${c._id}`} style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {c.title}
+                        </Link>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          {c.projectName}
+                        </div>
+                      </td>
+                      <td style={{ padding: '1rem' }}>
+                        <div style={{ fontWeight: 600 }}>{c.menteeId?.name || 'Unknown'}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{c.menteeId?.email}</div>
+                      </td>
+                      <td style={{ padding: '1rem' }}>
+                        <ContributionTypeBadge type={c.contributionType} />
+                      </td>
+                      <td style={{ padding: '1rem' }}>
+                        <PRStatusBadge status={c.pullRequestStatus} />
+                      </td>
+                      <td style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.775rem' }}>
+                        {new Date(c.updatedAt).toLocaleDateString()}
+                      </td>
+                      <td style={{ padding: '1rem', textAlign: 'right' }}>
+                        <Link to={`/contributions/${c._id}`} className="btn btn-outline btn-sm" style={{ padding: '0.25rem 0.55rem', fontSize: '0.75rem' }}>
+                          <Eye size={13} />
+                          <span>Inspect</span>
+                        </Link>
                       </td>
                     </tr>
                   ))
@@ -608,23 +1081,23 @@ export const AdminDashboard = () => {
               </div>
 
               <div className="form-group">
+                <label className="form-label">GitHub Username (Optional)</label>
+                <input
+                  type="text"
+                  value={newUser.githubUsername}
+                  onChange={(e) => setNewUser({ ...newUser, githubUsername: e.target.value })}
+                  placeholder="e.g. jordan-dev"
+                  className="form-control"
+                />
+              </div>
+
+              <div className="form-group">
                 <label className="form-label">Skills (comma separated)</label>
                 <input
                   type="text"
                   value={newUser.skills}
                   onChange={(e) => setNewUser({ ...newUser, skills: e.target.value })}
                   placeholder="React, Python, Git, Docker"
-                  className="form-control"
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Interests (comma separated)</label>
-                <input
-                  type="text"
-                  value={newUser.interests}
-                  onChange={(e) => setNewUser({ ...newUser, interests: e.target.value })}
-                  placeholder="DevOps, Web3, UI Design, CLI Tools"
                   className="form-control"
                 />
               </div>
@@ -650,6 +1123,89 @@ export const AdminDashboard = () => {
         </div>
       )}
 
+      {/* Edit User Modal */}
+      {editingUser && (
+        <div className="modal-overlay" onClick={() => setEditingUser(null)}>
+          <div
+            className="glass-panel"
+            style={{ width: '100%', maxWidth: '480px', padding: '2rem', background: 'rgba(15, 23, 42, 0.98)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 style={{ fontSize: '1.35rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Edit size={20} style={{ color: 'var(--primary)' }} />
+              <span>Edit User Account</span>
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.825rem', marginBottom: '1.25rem' }}>
+              {editingUser.email}
+            </p>
+
+            <form onSubmit={handleSaveEditUser}>
+              <div className="form-group">
+                <label className="form-label">Full Name</label>
+                <input
+                  type="text"
+                  required
+                  value={editFormData.name}
+                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                  className="form-control"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Role</label>
+                <select
+                  value={editFormData.role}
+                  onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value })}
+                  className="form-control"
+                >
+                  <option value="mentee">Mentee</option>
+                  <option value="mentor">Mentor</option>
+                  <option value="admin">Administrator</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">GitHub Username</label>
+                <input
+                  type="text"
+                  value={editFormData.githubUsername}
+                  onChange={(e) => setEditFormData({ ...editFormData, githubUsername: e.target.value })}
+                  className="form-control"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <input
+                    type="checkbox"
+                    checked={editFormData.isActive}
+                    onChange={(e) => setEditFormData({ ...editFormData, isActive: e.target.checked })}
+                  />
+                  <span>Account is Active</span>
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setEditingUser(null)}
+                  className="btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editLoading}
+                  className="btn btn-primary"
+                >
+                  {editLoading ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Assign Mentorship Modal */}
       {showAssignModal && (
         <div className="modal-overlay" onClick={() => setShowAssignModal(false)}>
@@ -660,10 +1216,10 @@ export const AdminDashboard = () => {
           >
             <h2 style={{ fontSize: '1.4rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <LinkIcon size={22} style={{ color: 'var(--primary)' }} />
-              <span>Create Mentorship Assignment</span>
+              <span>Create Mentorship Pairing</span>
             </h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
-              Pair a mentee with a mentor for an open-source cohort.
+              Pair an active mentee with an experienced mentor for a specific cohort.
             </p>
 
             {assignError && (
