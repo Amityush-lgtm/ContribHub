@@ -56,7 +56,9 @@ export const UnauthorizedPage = () => {
 
         {user && (
           <div style={{
-            background: 'rgba(15, 23, 42, 0.7)',
+            background: 'var(--bg-surface)',
+            boxShadow: 'var(--nm-shadow-inset)',
+            border: '1px solid var(--border-color)',
             borderRadius: 'var(--radius-sm)',
             padding: '0.75rem 1rem',
             marginBottom: '1.5rem',

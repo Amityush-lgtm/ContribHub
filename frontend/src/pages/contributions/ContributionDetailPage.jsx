@@ -83,7 +83,8 @@ export const ContributionDetailPage = () => {
     setActionLoading(true);
     try {
       await apiFetch(`/api/contributions/${id}`, { method: 'DELETE' });
-      navigate('/mentee/dashboard');
+      const dest = user?.role === 'mentor' ? '/mentor/dashboard' : user?.role === 'admin' ? '/admin/dashboard' : '/mentee/dashboard';
+      navigate(dest);
     } catch (err) {
       alert(`Delete failed: ${err.message}`);
       setActionLoading(false);
@@ -145,13 +146,13 @@ export const ContributionDetailPage = () => {
     );
   }
 
-  const isOwner =
-    user?.role === 'mentee' &&
-    (contribution.menteeId?._id === user?.id || contribution.menteeId === user?.id || contribution.menteeId?._id === user?._id);
-  const canEdit = isOwner && ['draft', 'changes_requested'].includes(contribution.reviewStatus);
+  const ownerId = contribution.menteeId?._id || contribution.menteeId;
+  const currentUserId = user?._id || user?.id;
+  const isOwner = Boolean(ownerId && currentUserId && (ownerId.toString() === currentUserId.toString()));
+  const canEdit = (isOwner || user?.role === 'admin') && ['draft', 'changes_requested'].includes(contribution.reviewStatus);
   const canSubmit = isOwner && ['draft', 'changes_requested'].includes(contribution.reviewStatus);
-  const canDelete = isOwner && contribution.reviewStatus === 'draft';
-  const canReview = user?.role === 'mentor' || user?.role === 'admin';
+  const canDelete = (isOwner || user?.role === 'admin') && contribution.reviewStatus === 'draft';
+  const canReview = ((user?.role === 'mentor' && !isOwner) || user?.role === 'admin');
 
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
@@ -173,11 +174,11 @@ export const ContributionDetailPage = () => {
           <span>Back</span>
         </button>
 
-        {/* Action Controls for Mentee Owner */}
+        {/* Action Controls for Record Owner */}
         {isOwner && (
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             {canEdit && (
-              <Link to={`/mentee/contributions/edit/${contribution._id}`} className="btn btn-secondary btn-sm">
+              <Link to={`/contributions/edit/${contribution._id}`} className="btn btn-secondary btn-sm">
                 <FileEdit size={14} />
                 <span>Edit Record</span>
               </Link>
@@ -330,8 +331,8 @@ export const ContributionDetailPage = () => {
         <div className="glass-panel" style={{
           padding: '1.75rem',
           marginBottom: '1.75rem',
-          border: '1px solid rgba(99, 102, 241, 0.4)',
-          background: 'rgba(15, 23, 42, 0.9)'
+          border: '1px solid var(--border-color)',
+          background: 'var(--bg-surface)'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -386,9 +387,10 @@ export const ContributionDetailPage = () => {
                   style={{
                     padding: '0.85rem 1rem',
                     borderRadius: 'var(--radius-sm)',
-                    border: reviewDecision === 'approved' ? '2px solid #10b981' : '1px solid var(--border-color)',
-                    background: reviewDecision === 'approved' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(15, 23, 42, 0.6)',
-                    color: reviewDecision === 'approved' ? '#6ee7b7' : 'var(--text-secondary)',
+                    border: reviewDecision === 'approved' ? '1px solid rgba(52, 211, 153, 0.5)' : '1px solid var(--border-color)',
+                    background: 'var(--bg-surface)',
+                    boxShadow: reviewDecision === 'approved' ? 'var(--nm-shadow-btn-pressed)' : 'var(--nm-shadow-btn)',
+                    color: reviewDecision === 'approved' ? 'var(--success)' : 'var(--text-secondary)',
                     fontWeight: 700,
                     fontSize: '0.875rem',
                     cursor: 'pointer',
@@ -409,9 +411,10 @@ export const ContributionDetailPage = () => {
                   style={{
                     padding: '0.85rem 1rem',
                     borderRadius: 'var(--radius-sm)',
-                    border: reviewDecision === 'changes_requested' ? '2px solid #f59e0b' : '1px solid var(--border-color)',
-                    background: reviewDecision === 'changes_requested' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(15, 23, 42, 0.6)',
-                    color: reviewDecision === 'changes_requested' ? '#fbbf24' : 'var(--text-secondary)',
+                    border: reviewDecision === 'changes_requested' ? '1px solid rgba(251, 191, 36, 0.5)' : '1px solid var(--border-color)',
+                    background: 'var(--bg-surface)',
+                    boxShadow: reviewDecision === 'changes_requested' ? 'var(--nm-shadow-btn-pressed)' : 'var(--nm-shadow-btn)',
+                    color: reviewDecision === 'changes_requested' ? 'var(--warning)' : 'var(--text-secondary)',
                     fontWeight: 700,
                     fontSize: '0.875rem',
                     cursor: 'pointer',
@@ -432,9 +435,10 @@ export const ContributionDetailPage = () => {
                   style={{
                     padding: '0.85rem 1rem',
                     borderRadius: 'var(--radius-sm)',
-                    border: reviewDecision === 'rejected' ? '2px solid #ef4444' : '1px solid var(--border-color)',
-                    background: reviewDecision === 'rejected' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(15, 23, 42, 0.6)',
-                    color: reviewDecision === 'rejected' ? '#f87171' : 'var(--text-secondary)',
+                    border: reviewDecision === 'rejected' ? '1px solid rgba(248, 113, 113, 0.5)' : '1px solid var(--border-color)',
+                    background: 'var(--bg-surface)',
+                    boxShadow: reviewDecision === 'rejected' ? 'var(--nm-shadow-btn-pressed)' : 'var(--nm-shadow-btn)',
+                    color: reviewDecision === 'rejected' ? 'var(--danger)' : 'var(--text-secondary)',
                     fontWeight: 700,
                     fontSize: '0.875rem',
                     cursor: 'pointer',
@@ -664,7 +668,8 @@ export const ContributionDetailPage = () => {
                 style={{
                   padding: '1rem',
                   borderRadius: 'var(--radius-sm)',
-                  background: 'rgba(15, 23, 42, 0.5)',
+                  background: 'var(--bg-surface)',
+                  boxShadow: 'var(--nm-shadow-inset)',
                   border: '1px solid var(--border-color)',
                   display: 'flex',
                   flexDirection: 'column',

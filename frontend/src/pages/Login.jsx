@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   GitPullRequest,
@@ -12,7 +12,12 @@ import {
   Compass,
   Shield,
   Github,
-  CheckCircle2
+  CheckCircle2,
+  Check,
+  Briefcase,
+  Building,
+  Link2,
+  Award
 } from 'lucide-react';
 
 export const Login = () => {
@@ -21,30 +26,22 @@ export const Login = () => {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [role, setRole] = useState('mentee');
-  const [githubUsername, setGithubUsername] = useState('');
   const [skills, setSkills] = useState('');
+  // Mentor credibility state
+  const [mentorTitle, setMentorTitle] = useState('');
+  const [mentorOrganization, setMentorOrganization] = useState('');
+  const [mentorExperience, setMentorExperience] = useState('3');
+  const [mentorLinkedin, setMentorLinkedin] = useState('');
+  const [mentorBio, setMentorBio] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
   const { login, register, user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
-
-  // If already authenticated, redirect to role dashboard
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      redirectToDashboard(user.role);
-    }
-  }, [isAuthenticated, user]);
 
   const redirectToDashboard = (userRole) => {
-    const from = location.state?.from?.pathname;
-    if (from && !from.includes('/login')) {
-      navigate(from, { replace: true });
-      return;
-    }
-
     switch (userRole) {
       case 'admin':
         navigate('/admin/dashboard', { replace: true });
@@ -56,9 +53,15 @@ export const Login = () => {
         navigate('/mentee/dashboard', { replace: true });
         break;
       default:
-        navigate('/', { replace: true });
+        navigate('/mentee/dashboard', { replace: true });
     }
   };
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      redirectToDashboard(user.role);
+    }
+  }, [isAuthenticated, user]);
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
@@ -69,12 +72,15 @@ export const Login = () => {
 
     setLoading(true);
     setErrorMsg('');
+    setSuccessMsg('');
 
     try {
-      const loggedUser = await login(email, password);
-      redirectToDashboard(loggedUser.role);
+      const loggedUser = await login(email.trim().toLowerCase(), password);
+      if (loggedUser) {
+        redirectToDashboard(loggedUser.role);
+      }
     } catch (err) {
-      setErrorMsg(err.message || 'Login failed. Please check your credentials.');
+      setErrorMsg(err.message || 'Invalid email or password.');
     } finally {
       setLoading(false);
     }
@@ -82,7 +88,7 @@ export const Login = () => {
 
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
-    if (!name || !email || !password) {
+    if (!name.trim() || !email.trim() || !password) {
       setErrorMsg('Please provide your name, email, and password.');
       return;
     }
@@ -92,24 +98,45 @@ export const Login = () => {
       return;
     }
 
+    if (role === 'mentor') {
+      if (!mentorTitle.trim() || !mentorOrganization.trim()) {
+        setErrorMsg('Mentor applicants must provide their professional title and current organization or project.');
+        return;
+      }
+      if (!mentorBio.trim() || mentorBio.trim().length < 20) {
+        setErrorMsg('Please write a brief summary (at least 20 characters) describing your engineering background and mentorship expertise.');
+        return;
+      }
+    }
+
     setLoading(true);
     setErrorMsg('');
+    setSuccessMsg('');
 
     try {
+      const skillsArray = skills
+        ? skills.split(',').map((s) => s.trim()).filter(Boolean)
+        : [];
+
       const newUser = await register({
-        name,
-        email,
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
         password,
         role,
-        githubUsername,
-        skills
+        skills: skillsArray,
+        title: mentorTitle.trim(),
+        organization: mentorOrganization.trim(),
+        yearsOfExperience: Number(mentorExperience) || 0,
+        linkedinUrl: mentorLinkedin.trim(),
+        mentorBio: mentorBio.trim()
       });
+
       setSuccessMsg(`Welcome to ContribHub, ${newUser.name}!`);
       setTimeout(() => {
         redirectToDashboard(newUser.role);
-      }, 700);
+      }, 400);
     } catch (err) {
-      setErrorMsg(err.message || 'Registration failed.');
+      setErrorMsg(err.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -122,149 +149,157 @@ export const Login = () => {
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '2.5rem 1.5rem',
-      position: 'relative'
+      padding: '3rem 1.5rem',
+      backgroundColor: 'var(--bg-main)'
     }}>
-      {/* Background ambient glow */}
-      <div style={{
-        position: 'absolute',
-        top: '25%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        width: '650px',
-        height: '400px',
-        background: 'radial-gradient(circle, rgba(99, 102, 241, 0.16) 0%, rgba(6, 182, 212, 0.08) 50%, transparent 70%)',
-        filter: 'blur(70px)',
-        pointerEvents: 'none'
-      }} />
-
-      <div style={{ width: '100%', maxWidth: '480px', position: 'relative', zIndex: 1 }}>
-        {/* Brand Header */}
-        <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
+      <div style={{ width: '100%', maxWidth: '480px' }}>
+        {/* Brand Header - Calm Light Neumorphic */}
+        <div style={{ textAlign: 'center', marginBottom: '2.25rem' }}>
           <div style={{
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
             width: '60px',
             height: '60px',
-            borderRadius: '18px',
-            background: 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)',
-            color: '#fff',
-            boxShadow: '0 8px 28px rgba(99, 102, 241, 0.45)',
-            marginBottom: '1rem'
+            borderRadius: '20px',
+            background: 'var(--bg-surface)',
+            color: 'var(--primary)',
+            boxShadow: 'var(--nm-shadow-btn)',
+            border: '1px solid var(--border-color)',
+            marginBottom: '1.25rem'
           }}>
-            <GitPullRequest size={32} strokeWidth={2.5} />
+            <GitPullRequest size={28} />
           </div>
 
+          <span className="eyebrow">A Calmer Way to Contribute</span>
+
           <h1 style={{
-            fontSize: '2rem',
+            fontSize: '2.25rem',
             fontWeight: 800,
-            marginBottom: '0.4rem',
-            background: 'linear-gradient(to right, #ffffff, #cbd5e1)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent'
+            letterSpacing: '-0.03em',
+            color: 'var(--text-primary)',
+            lineHeight: 1.2,
+            marginBottom: '0.65rem'
           }}>
-            Contrib<span style={{ color: '#6366f1', WebkitTextFillColor: '#6366f1' }}>Hub</span>
+            Make space for open source.
           </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-            Open-Source Mentorship & Contribution Management
+          <p style={{
+            color: 'var(--text-secondary)',
+            fontSize: '0.95rem',
+            lineHeight: 1.6,
+            maxWidth: '420px',
+            margin: '0 auto'
+          }}>
+            Shape quieter contribution workflows with guided mentorship, automatic pull request sync, and an interface that stays out of your way.
           </p>
         </div>
 
-        {/* Form Container */}
-        <div className="glass-panel" style={{ padding: '2rem' }}>
+        {/* Elevated Neumorphic Card */}
+        <div className="glass-panel" style={{
+          padding: '2.5rem 2.25rem',
+          borderRadius: 'var(--radius-xl)'
+        }}>
           {/* Mode Switcher Tabs */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            background: 'rgba(15, 23, 42, 0.6)',
-            borderRadius: 'var(--radius-sm)',
-            padding: '0.25rem',
-            marginBottom: '1.75rem',
-            border: '1px solid var(--border-color)'
-          }}>
+          <div
+            role="tablist"
+            aria-label="Authentication Options"
+            className="nm-segmented-container"
+            style={{ marginBottom: '1.75rem' }}
+          >
             <button
               type="button"
+              role="tab"
+              aria-selected={mode === 'login'}
               onClick={() => {
                 setMode('login');
                 setErrorMsg('');
                 setSuccessMsg('');
               }}
-              style={{
-                padding: '0.6rem 1rem',
-                borderRadius: 'calc(var(--radius-sm) - 2px)',
-                background: mode === 'login' ? 'var(--primary)' : 'transparent',
-                color: mode === 'login' ? '#ffffff' : 'var(--text-secondary)',
-                fontWeight: 700,
-                fontSize: '0.875rem',
-                border: 'none',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
+              className={`nm-segmented-btn ${mode === 'login' ? 'active' : ''}`}
             >
-              Sign In
+              <span>Sign In</span>
+              {mode === 'login' && (
+                <span style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  background: 'var(--primary)'
+                }} />
+              )}
             </button>
             <button
               type="button"
+              role="tab"
+              aria-selected={mode === 'register'}
               onClick={() => {
                 setMode('register');
                 setErrorMsg('');
                 setSuccessMsg('');
               }}
-              style={{
-                padding: '0.6rem 1rem',
-                borderRadius: 'calc(var(--radius-sm) - 2px)',
-                background: mode === 'register' ? 'var(--primary)' : 'transparent',
-                color: mode === 'register' ? '#ffffff' : 'var(--text-secondary)',
-                fontWeight: 700,
-                fontSize: '0.875rem',
-                border: 'none',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
+              className={`nm-segmented-btn ${mode === 'register' ? 'active' : ''}`}
             >
-              Create Account
+              <span>Create Account</span>
+              {mode === 'register' && (
+                <span style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  background: 'var(--primary)'
+                }} />
+              )}
             </button>
           </div>
 
+          {/* Feedback Alerts */}
           {errorMsg && (
-            <div style={{
-              background: 'rgba(239, 68, 68, 0.12)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              borderRadius: 'var(--radius-sm)',
-              padding: '0.85rem 1rem',
-              color: '#fca5a5',
-              fontSize: '0.875rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.65rem',
-              marginBottom: '1.5rem'
-            }}>
+            <div
+              role="alert"
+              style={{
+                background: 'var(--bg-surface)',
+                boxShadow: 'var(--nm-shadow-inset)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '0.85rem 1rem',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                color: 'var(--danger)',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.65rem',
+                marginBottom: '1.5rem'
+              }}
+            >
               <ShieldAlert size={18} style={{ flexShrink: 0 }} />
               <span>{errorMsg}</span>
             </div>
           )}
 
           {successMsg && (
-            <div style={{
-              background: 'rgba(16, 185, 129, 0.12)',
-              border: '1px solid rgba(16, 185, 129, 0.3)',
-              borderRadius: 'var(--radius-sm)',
-              padding: '0.85rem 1rem',
-              color: '#6ee7b7',
-              fontSize: '0.875rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.65rem',
-              marginBottom: '1.5rem'
-            }}>
+            <div
+              role="status"
+              style={{
+                background: 'var(--bg-surface)',
+                boxShadow: 'var(--nm-shadow-inset)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '0.85rem 1rem',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                color: 'var(--success)',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.65rem',
+                marginBottom: '1.5rem'
+              }}
+            >
               <CheckCircle2 size={18} style={{ flexShrink: 0 }} />
               <span>{successMsg}</span>
             </div>
           )}
 
+          {/* Sign In Form */}
           {mode === 'login' ? (
-            <form onSubmit={handleLoginSubmit}>
+            <form onSubmit={handleLoginSubmit} noValidate>
               <div className="form-group">
                 <label className="form-label" htmlFor="email">
                   Email Address
@@ -272,9 +307,10 @@ export const Login = () => {
                 <div style={{ position: 'relative' }}>
                   <Mail
                     size={18}
+                    aria-hidden="true"
                     style={{
                       position: 'absolute',
-                      left: '1rem',
+                      left: '1.1rem',
                       top: '50%',
                       transform: 'translateY(-50%)',
                       color: 'var(--text-muted)'
@@ -283,26 +319,29 @@ export const Login = () => {
                   <input
                     id="email"
                     type="email"
-                    className="form-control"
-                    style={{ paddingLeft: '2.75rem' }}
-                    placeholder="you@domain.com"
+                    className={`form-control ${errorMsg && !email ? 'is-invalid' : ''}`}
+                    style={{ paddingLeft: '2.85rem' }}
+                    placeholder="name@domain.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
+                    autoComplete="email"
+                    aria-required="true"
                   />
                 </div>
               </div>
 
-              <div className="form-group">
+              <div className="form-group" style={{ marginBottom: '1.85rem' }}>
                 <label className="form-label" htmlFor="password">
                   Password
                 </label>
                 <div style={{ position: 'relative' }}>
                   <Lock
                     size={18}
+                    aria-hidden="true"
                     style={{
                       position: 'absolute',
-                      left: '1rem',
+                      left: '1.1rem',
                       top: '50%',
                       transform: 'translateY(-50%)',
                       color: 'var(--text-muted)'
@@ -311,12 +350,14 @@ export const Login = () => {
                   <input
                     id="password"
                     type="password"
-                    className="form-control"
-                    style={{ paddingLeft: '2.75rem' }}
-                    placeholder="••••••••••••"
+                    className={`form-control ${errorMsg && !password ? 'is-invalid' : ''}`}
+                    style={{ paddingLeft: '2.85rem' }}
+                    placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    autoComplete="current-password"
+                    aria-required="true"
                   />
                 </div>
               </div>
@@ -324,31 +365,34 @@ export const Login = () => {
               <button
                 type="submit"
                 disabled={loading}
+                aria-busy={loading}
                 className="btn btn-primary"
-                style={{ width: '100%', marginTop: '0.75rem', padding: '0.85rem' }}
+                style={{ width: '100%', minHeight: '48px', fontSize: '0.95rem', borderRadius: '16px' }}
               >
                 {loading ? (
                   <span>Signing In...</span>
                 ) : (
                   <>
-                    <span>Sign In to ContribHub</span>
+                    <span>Start a Session</span>
                     <ArrowRight size={16} />
                   </>
                 )}
               </button>
             </form>
           ) : (
-            <form onSubmit={handleRegisterSubmit}>
+            /* Register Form */
+            <form onSubmit={handleRegisterSubmit} noValidate>
               <div className="form-group">
                 <label className="form-label" htmlFor="name">
-                  Full Name *
+                  Full Name
                 </label>
                 <div style={{ position: 'relative' }}>
                   <User
                     size={18}
+                    aria-hidden="true"
                     style={{
                       position: 'absolute',
-                      left: '1rem',
+                      left: '1.1rem',
                       top: '50%',
                       transform: 'translateY(-50%)',
                       color: 'var(--text-muted)'
@@ -358,25 +402,27 @@ export const Login = () => {
                     id="name"
                     type="text"
                     className="form-control"
-                    style={{ paddingLeft: '2.75rem' }}
-                    placeholder="Your Name"
+                    style={{ paddingLeft: '2.85rem' }}
+                    placeholder="Your Full Name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
+                    aria-required="true"
                   />
                 </div>
               </div>
 
               <div className="form-group">
                 <label className="form-label" htmlFor="reg-email">
-                  Email Address *
+                  Email Address
                 </label>
                 <div style={{ position: 'relative' }}>
                   <Mail
                     size={18}
+                    aria-hidden="true"
                     style={{
                       position: 'absolute',
-                      left: '1rem',
+                      left: '1.1rem',
                       top: '50%',
                       transform: 'translateY(-50%)',
                       color: 'var(--text-muted)'
@@ -386,25 +432,27 @@ export const Login = () => {
                     id="reg-email"
                     type="email"
                     className="form-control"
-                    style={{ paddingLeft: '2.75rem' }}
+                    style={{ paddingLeft: '2.85rem' }}
                     placeholder="you@domain.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
+                    aria-required="true"
                   />
                 </div>
               </div>
 
               <div className="form-group">
                 <label className="form-label" htmlFor="reg-password">
-                  Password (min 6 characters) *
+                  Password (min 6 characters)
                 </label>
                 <div style={{ position: 'relative' }}>
                   <Lock
                     size={18}
+                    aria-hidden="true"
                     style={{
                       position: 'absolute',
-                      left: '1rem',
+                      left: '1.1rem',
                       top: '50%',
                       transform: 'translateY(-50%)',
                       color: 'var(--text-muted)'
@@ -414,87 +462,198 @@ export const Login = () => {
                     id="reg-password"
                     type="password"
                     className="form-control"
-                    style={{ paddingLeft: '2.75rem' }}
-                    placeholder="••••••••••••"
+                    style={{ paddingLeft: '2.85rem' }}
+                    placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    aria-required="true"
                   />
                 </div>
               </div>
 
-              {/* Role Picker */}
+              {/* Role Selector */}
               <div className="form-group">
-                <label className="form-label">I want to join as</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
-                  <button
-                    type="button"
-                    onClick={() => setRole('mentee')}
-                    className={`btn ${role === 'mentee' ? 'btn-primary' : 'btn-outline'} btn-sm`}
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', padding: '0.65rem 0.25rem' }}
-                  >
-                    <Code2 size={15} />
-                    <span>Mentee</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRole('mentor')}
-                    className={`btn ${role === 'mentor' ? 'btn-primary' : 'btn-outline'} btn-sm`}
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', padding: '0.65rem 0.25rem' }}
-                  >
-                    <Compass size={15} />
-                    <span>Mentor</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRole('admin')}
-                    className={`btn ${role === 'admin' ? 'btn-primary' : 'btn-outline'} btn-sm`}
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', padding: '0.65rem 0.25rem' }}
-                  >
-                    <Shield size={15} />
-                    <span>Admin</span>
-                  </button>
+                <label className="form-label" id="role-label">Choose Role</label>
+                <div
+                  role="radiogroup"
+                  aria-labelledby="role-label"
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gap: '0.65rem'
+                  }}
+                >
+                  {[
+                    { id: 'mentee', label: 'Mentee', icon: Code2 },
+                    { id: 'mentor', label: 'Mentor', icon: Compass },
+                    { id: 'admin', label: 'Admin', icon: Shield }
+                  ].map(({ id: rId, label, icon: Icon }) => {
+                    const isSelected = role === rId;
+                    return (
+                      <button
+                        key={rId}
+                        type="button"
+                        role="radio"
+                        aria-checked={isSelected}
+                        onClick={() => setRole(rId)}
+                        style={{
+                          padding: '0.65rem 0.35rem',
+                          borderRadius: 'var(--radius-sm)',
+                          background: 'var(--bg-surface)',
+                          boxShadow: isSelected ? 'var(--nm-shadow-btn-pressed)' : 'var(--nm-shadow-btn)',
+                          border: isSelected ? '1px solid var(--primary-border)' : '1px solid var(--border-color)',
+                          color: isSelected ? 'var(--primary)' : 'var(--text-secondary)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.35rem',
+                          fontSize: '0.825rem',
+                          fontWeight: isSelected ? 700 : 600,
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <Icon size={14} />
+                        <span>{label}</span>
+                        {isSelected && (
+                          <span style={{
+                            width: '4px',
+                            height: '4px',
+                            borderRadius: '50%',
+                            background: 'var(--primary)'
+                          }} />
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* GitHub Username */}
-              <div className="form-group">
-                <label className="form-label" htmlFor="reg-github">
-                  GitHub Username (Optional)
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <Github
-                    size={18}
-                    style={{
-                      position: 'absolute',
-                      left: '1rem',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      color: 'var(--text-muted)'
-                    }}
-                  />
-                  <input
-                    id="reg-github"
-                    type="text"
-                    className="form-control"
-                    style={{ paddingLeft: '2.75rem' }}
-                    placeholder="e.g. Amityush-lgtm"
-                    value={githubUsername}
-                    onChange={(e) => setGithubUsername(e.target.value)}
-                  />
-                </div>
-              </div>
+              {/* Mentor Credibility Section (Only shown when applying as Mentor) */}
+              {role === 'mentor' && (
+                <div style={{
+                  padding: '1.25rem',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--bg-surface)',
+                  boxShadow: 'var(--nm-shadow-inset)',
+                  border: '1px solid var(--primary-border)',
+                  marginBottom: '1.25rem'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.45rem',
+                    marginBottom: '1rem',
+                    color: 'var(--primary)',
+                    fontWeight: 700,
+                    fontSize: '0.875rem'
+                  }}>
+                    <Award size={16} />
+                    <span>Mentor Credibility & Track Record</span>
+                  </div>
 
-              {/* Skills */}
-              <div className="form-group">
+                  <div className="form-group" style={{ marginBottom: '0.85rem' }}>
+                    <label className="form-label" htmlFor="mentor-title">
+                      Professional Title *
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <Briefcase size={16} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                      <input
+                        id="mentor-title"
+                        type="text"
+                        required
+                        className="form-control"
+                        style={{ paddingLeft: '2.6rem', fontSize: '0.85rem' }}
+                        placeholder="e.g. Senior Software Engineer / OSS Lead"
+                        value={mentorTitle}
+                        onChange={(e) => setMentorTitle(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '0.85rem' }}>
+                    <label className="form-label" htmlFor="mentor-org">
+                      Organization or Project *
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <Building size={16} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                      <input
+                        id="mentor-org"
+                        type="text"
+                        required
+                        className="form-control"
+                        style={{ paddingLeft: '2.6rem', fontSize: '0.85rem' }}
+                        placeholder="e.g. Red Hat / Apache Foundation / Stripe"
+                        value={mentorOrganization}
+                        onChange={(e) => setMentorOrganization(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '0.75rem', marginBottom: '0.85rem' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label" htmlFor="mentor-exp">
+                        Years Exp.
+                      </label>
+                      <input
+                        id="mentor-exp"
+                        type="number"
+                        min="1"
+                        max="40"
+                        className="form-control"
+                        style={{ fontSize: '0.85rem' }}
+                        value={mentorExperience}
+                        onChange={(e) => setMentorExperience(e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label" htmlFor="mentor-linkedin">
+                        LinkedIn / Portfolio
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <Link2 size={15} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                        <input
+                          id="mentor-linkedin"
+                          type="url"
+                          className="form-control"
+                          style={{ paddingLeft: '2.3rem', fontSize: '0.85rem' }}
+                          placeholder="linkedin.com/in/..."
+                          value={mentorLinkedin}
+                          onChange={(e) => setMentorLinkedin(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label" htmlFor="mentor-bio">
+                      Mentorship Background & Credibility *
+                    </label>
+                    <textarea
+                      id="mentor-bio"
+                      required
+                      rows={2}
+                      className="form-control"
+                      style={{ fontSize: '0.825rem', resize: 'vertical' }}
+                      placeholder="Share your open-source experience, repos maintained, or mentoring track record (min 20 characters)..."
+                      value={mentorBio}
+                      onChange={(e) => setMentorBio(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Technical Skills */}
+              <div className="form-group" style={{ marginBottom: '1.85rem' }}>
                 <label className="form-label" htmlFor="reg-skills">
-                  Skills / Tech Stack (comma-separated)
+                  Primary Technical Skills (comma-separated)
                 </label>
                 <input
                   id="reg-skills"
                   type="text"
                   className="form-control"
-                  placeholder="React, Node.js, Python, Git"
+                  placeholder="React, TypeScript, Go, Python"
                   value={skills}
                   onChange={(e) => setSkills(e.target.value)}
                 />
@@ -503,14 +662,15 @@ export const Login = () => {
               <button
                 type="submit"
                 disabled={loading}
+                aria-busy={loading}
                 className="btn btn-primary"
-                style={{ width: '100%', marginTop: '0.75rem', padding: '0.85rem' }}
+                style={{ width: '100%', minHeight: '48px', fontSize: '0.95rem', borderRadius: '16px' }}
               >
                 {loading ? (
                   <span>Creating Account...</span>
                 ) : (
                   <>
-                    <span>Create ContribHub Account</span>
+                    <span>Create Account</span>
                     <ArrowRight size={16} />
                   </>
                 )}
@@ -519,14 +679,36 @@ export const Login = () => {
           )}
 
           <div style={{
-            marginTop: '1.5rem',
+            marginTop: '1.85rem',
             paddingTop: '1.25rem',
-            borderTop: '1px solid var(--border-color)',
+            borderTop: '1px solid var(--border-subtle)',
             fontSize: '0.825rem',
             color: 'var(--text-muted)',
             textAlign: 'center'
           }}>
-            Open-Source Mentorship & Contribution Tracking Layer
+            ContribHub Mentorship & Open-Source Tracking
+          </div>
+        </div>
+
+        {/* Feature Check Chips (Exact match to reference bottom pills) */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          gap: '0.85rem',
+          flexWrap: 'wrap',
+          marginTop: '2rem'
+        }}>
+          <div className="feature-chip">
+            <Check size={14} style={{ color: 'var(--primary)' }} />
+            <span>Distraction-free</span>
+          </div>
+          <div className="feature-chip">
+            <Check size={14} style={{ color: 'var(--primary)' }} />
+            <span>Auto-synced PRs</span>
+          </div>
+          <div className="feature-chip">
+            <Check size={14} style={{ color: 'var(--primary)' }} />
+            <span>Mentor verified</span>
           </div>
         </div>
       </div>

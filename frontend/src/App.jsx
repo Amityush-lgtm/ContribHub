@@ -82,6 +82,18 @@ export const App = () => {
         <Route path="contributions/edit/:id" element={<ContributionFormPage />} />
       </Route>
 
+      {/* Edit contribution route accessible to permitted roles */}
+      <Route
+        path="/contributions/edit/:id"
+        element={
+          <ProtectedRoute allowedRoles={['admin', 'mentor', 'mentee']}>
+            <RoleLayout roleTitle="Edit Contribution" />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<ContributionFormPage />} />
+      </Route>
+
       {/* Contribution detail accessible to all permitted roles */}
       <Route
         path="/contributions/:id"

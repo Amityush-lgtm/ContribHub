@@ -220,7 +220,8 @@ export const getContributionById = async (req, res, next) => {
 
     // Permission check
     const { user } = req;
-    const isOwner = contribution.menteeId._id.toString() === user._id.toString();
+    const menteeTargetId = contribution.menteeId?._id?.toString() || contribution.menteeId?.toString();
+    const isOwner = Boolean(menteeTargetId && menteeTargetId === user._id.toString());
 
     if (user.role === 'mentee' && !isOwner) {
       return res.status(403).json({
@@ -229,12 +230,12 @@ export const getContributionById = async (req, res, next) => {
       });
     }
 
-    if (user.role === 'mentor') {
-      const isAssigned = await MentorshipAssignment.findOne({
+    if (user.role === 'mentor' && !isOwner) {
+      const isAssigned = menteeTargetId ? await MentorshipAssignment.findOne({
         mentorId: user._id,
-        menteeId: contribution.menteeId._id,
+        menteeId: menteeTargetId,
         status: 'active'
-      });
+      }) : null;
       if (!isAssigned) {
         return res.status(403).json({
           success: false,
@@ -258,20 +259,18 @@ export const updateContribution = async (req, res, next) => {
     }
 
     const { user } = req;
-    const isOwner = contribution.menteeId.toString() === user._id.toString();
+    const menteeTargetId = contribution.menteeId?._id?.toString() || contribution.menteeId?.toString();
+    const isOwner = Boolean(menteeTargetId && menteeTargetId === user._id.toString());
 
-    if (user.role === 'mentee') {
-      if (!isOwner) {
-        return res.status(403).json({ success: false, message: 'Forbidden: You do not own this record.' });
-      }
-      if (!['draft', 'changes_requested'].includes(contribution.reviewStatus)) {
-        return res.status(400).json({
-          success: false,
-          message: `Cannot edit a contribution with status "${contribution.reviewStatus}". Only drafts and records with changes requested can be edited.`
-        });
-      }
-    } else if (user.role !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Forbidden: Only mentees or admins can edit contribution contents.' });
+    if (!isOwner && user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Forbidden: You do not have permission to edit this record.' });
+    }
+
+    if (user.role !== 'admin' && !['draft', 'changes_requested'].includes(contribution.reviewStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot edit a contribution with status "${contribution.reviewStatus}". Only drafts and records with changes requested can be edited.`
+      });
     }
 
     // Updatable fields
@@ -321,7 +320,7 @@ export const submitContribution = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Contribution record not found.' });
     }
 
-    const isOwner = contribution.menteeId.toString() === req.user._id.toString();
+    const isOwner = (contribution.menteeId?._id?.toString() || contribution.menteeId?.toString()) === req.user._id.toString();
     if (!isOwner && req.user.role !== 'admin') {
       return res.status(403).json({ success: false, message: 'Forbidden: Only the owner can submit this record.' });
     }
@@ -362,7 +361,7 @@ export const deleteContribution = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Contribution record not found.' });
     }
 
-    const isOwner = contribution.menteeId.toString() === req.user._id.toString();
+    const isOwner = (contribution.menteeId?._id?.toString() || contribution.menteeId?.toString()) === req.user._id.toString();
     if (!isOwner && req.user.role !== 'admin') {
       return res.status(403).json({ success: false, message: 'Forbidden: Only the creator or an admin can delete this record.' });
     }

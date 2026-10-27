@@ -257,22 +257,24 @@ export const AdminDashboard = () => {
   const filteredUsers = users.filter((u) => {
     const matchesRole = !roleFilter || u.role === roleFilter;
     const matchesStatus = !statusFilter || (statusFilter === 'active' ? u.isActive : !u.isActive);
+    const query = userSearch.toLowerCase();
     const matchesSearch =
       !userSearch ||
-      u.name.toLowerCase().includes(userSearch.toLowerCase()) ||
-      u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
-      (u.githubUsername && u.githubUsername.toLowerCase().includes(userSearch.toLowerCase()));
+      Boolean(u.name?.toLowerCase().includes(query)) ||
+      Boolean(u.email?.toLowerCase().includes(query)) ||
+      Boolean(u.githubUsername?.toLowerCase().includes(query));
     return matchesRole && matchesStatus && matchesSearch;
   });
 
   // Filtered contributions
   const filteredContributions = contributions.filter((c) => {
     const matchesStatus = contribStatusFilter === 'all' || c.reviewStatus === contribStatusFilter;
+    const query = contribSearch.toLowerCase();
     const matchesSearch =
       !contribSearch ||
-      c.title.toLowerCase().includes(contribSearch.toLowerCase()) ||
-      c.projectName.toLowerCase().includes(contribSearch.toLowerCase()) ||
-      (c.menteeId?.name && c.menteeId.name.toLowerCase().includes(contribSearch.toLowerCase()));
+      Boolean(c.title?.toLowerCase().includes(query)) ||
+      Boolean(c.projectName?.toLowerCase().includes(query)) ||
+      Boolean(c.menteeId?.name?.toLowerCase().includes(query));
     return matchesStatus && matchesSearch;
   });
 
@@ -499,31 +501,31 @@ export const AdminDashboard = () => {
             </h3>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
-              <div style={{ padding: '1rem', background: 'rgba(15, 23, 42, 0.5)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+              <div style={{ padding: '1rem', background: 'var(--bg-surface)', boxShadow: 'var(--nm-shadow-inset)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Approved</div>
                 <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--success)' }}>
                   {dashStats?.contributions?.approved || 0}
                 </div>
               </div>
-              <div style={{ padding: '1rem', background: 'rgba(15, 23, 42, 0.5)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+              <div style={{ padding: '1rem', background: 'var(--bg-surface)', boxShadow: 'var(--nm-shadow-inset)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Under Review</div>
                 <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--warning)' }}>
                   {dashStats?.contributions?.submitted || 0}
                 </div>
               </div>
-              <div style={{ padding: '1rem', background: 'rgba(15, 23, 42, 0.5)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+              <div style={{ padding: '1rem', background: 'var(--bg-surface)', boxShadow: 'var(--nm-shadow-inset)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Revisions Requested</div>
                 <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#f43f5e' }}>
                   {dashStats?.contributions?.changes_requested || 0}
                 </div>
               </div>
-              <div style={{ padding: '1rem', background: 'rgba(15, 23, 42, 0.5)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+              <div style={{ padding: '1rem', background: 'var(--bg-surface)', boxShadow: 'var(--nm-shadow-inset)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Drafts</div>
                 <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)' }}>
                   {dashStats?.contributions?.draft || 0}
                 </div>
               </div>
-              <div style={{ padding: '1rem', background: 'rgba(15, 23, 42, 0.5)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+              <div style={{ padding: '1rem', background: 'var(--bg-surface)', boxShadow: 'var(--nm-shadow-inset)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Rejected</div>
                 <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--danger)' }}>
                   {dashStats?.contributions?.rejected || 0}
@@ -580,7 +582,8 @@ export const AdminDashboard = () => {
                     style={{
                       padding: '0.85rem 1rem',
                       borderRadius: 'var(--radius-sm)',
-                      background: 'rgba(15, 23, 42, 0.5)',
+                      background: 'var(--bg-surface)',
+                      boxShadow: 'var(--nm-shadow-inset)',
                       border: '1px solid var(--border-color)',
                       display: 'flex',
                       alignItems: 'center',
@@ -1007,7 +1010,7 @@ export const AdminDashboard = () => {
         <div className="modal-overlay" onClick={() => setShowUserModal(false)}>
           <div
             className="glass-panel"
-            style={{ width: '100%', maxWidth: '520px', padding: '2rem', background: 'rgba(15, 23, 42, 0.98)' }}
+            style={{ width: '100%', maxWidth: '520px', padding: '2rem', background: 'var(--bg-surface)', boxShadow: 'var(--nm-shadow-raised)' }}
             onClick={(e) => e.stopPropagation()}
           >
             <h2 style={{ fontSize: '1.4rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -1128,7 +1131,7 @@ export const AdminDashboard = () => {
         <div className="modal-overlay" onClick={() => setEditingUser(null)}>
           <div
             className="glass-panel"
-            style={{ width: '100%', maxWidth: '480px', padding: '2rem', background: 'rgba(15, 23, 42, 0.98)' }}
+            style={{ width: '100%', maxWidth: '480px', padding: '2rem', background: 'var(--bg-surface)', boxShadow: 'var(--nm-shadow-raised)' }}
             onClick={(e) => e.stopPropagation()}
           >
             <h2 style={{ fontSize: '1.35rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -1211,7 +1214,7 @@ export const AdminDashboard = () => {
         <div className="modal-overlay" onClick={() => setShowAssignModal(false)}>
           <div
             className="glass-panel"
-            style={{ width: '100%', maxWidth: '500px', padding: '2rem', background: 'rgba(15, 23, 42, 0.98)' }}
+            style={{ width: '100%', maxWidth: '500px', padding: '2rem', background: 'var(--bg-surface)', boxShadow: 'var(--nm-shadow-raised)' }}
             onClick={(e) => e.stopPropagation()}
           >
             <h2 style={{ fontSize: '1.4rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

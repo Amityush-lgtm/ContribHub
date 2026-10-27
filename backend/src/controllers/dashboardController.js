@@ -42,7 +42,9 @@ export const getMentorDashboard = async (req, res, next) => {
     const assignments = await MentorshipAssignment.find({ mentorId, status: 'active' })
       .populate('menteeId', 'name email skills interests githubUsername createdAt');
 
-    const menteeIds = assignments.map((a) => a.menteeId._id);
+    const menteeIds = assignments
+      .map((a) => a.menteeId?._id)
+      .filter(Boolean);
 
     // Fetch contributions from these mentees
     const contributions = await Contribution.find({ menteeId: { $in: menteeIds } })
@@ -54,23 +56,25 @@ export const getMentorDashboard = async (req, res, next) => {
     const revisionsContributions = contributions.filter((c) => c.reviewStatus === 'changes_requested');
 
     // Mentee progress overview
-    const menteesProgress = assignments.map((a) => {
-      const menteeContribs = contributions.filter(
-        (c) => c.menteeId?._id?.toString() === a.menteeId._id.toString()
-      );
-      return {
-        assignmentId: a._id,
-        cohortName: a.cohortName,
-        startDate: a.startDate,
-        mentee: a.menteeId,
-        stats: {
-          total: menteeContribs.length,
-          approved: menteeContribs.filter((c) => c.reviewStatus === 'approved').length,
-          pending: menteeContribs.filter((c) => c.reviewStatus === 'submitted').length,
-          revisions: menteeContribs.filter((c) => c.reviewStatus === 'changes_requested').length
-        }
-      };
-    });
+    const menteesProgress = assignments
+      .filter((a) => a.menteeId)
+      .map((a) => {
+        const menteeContribs = contributions.filter(
+          (c) => c.menteeId?._id?.toString() === a.menteeId._id.toString()
+        );
+        return {
+          assignmentId: a._id,
+          cohortName: a.cohortName,
+          startDate: a.startDate,
+          mentee: a.menteeId,
+          stats: {
+            total: menteeContribs.length,
+            approved: menteeContribs.filter((c) => c.reviewStatus === 'approved').length,
+            pending: menteeContribs.filter((c) => c.reviewStatus === 'submitted').length,
+            revisions: menteeContribs.filter((c) => c.reviewStatus === 'changes_requested').length
+          }
+        };
+      });
 
     res.status(200).json({
       success: true,

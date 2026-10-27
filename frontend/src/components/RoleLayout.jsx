@@ -25,7 +25,8 @@ export const RoleLayout = () => {
         textAlign: 'center',
         color: 'var(--text-muted)',
         fontSize: '0.825rem',
-        background: 'rgba(9, 13, 22, 0.95)'
+        background: 'var(--bg-surface)',
+        boxShadow: '0 -4px 14px #12151a'
       }}>
         <div style={{ marginBottom: '0.5rem' }}>
           <span>ContribHub — Open-Source Mentorship & Contribution Management</span>

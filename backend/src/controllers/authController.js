@@ -78,7 +78,19 @@ export const getMe = async (req, res, next) => {
 
 export const register = async (req, res, next) => {
   try {
-    const { name, email, password, role, skills, interests, githubUsername } = req.body;
+    const {
+      name,
+      email,
+      password,
+      role,
+      skills,
+      interests,
+      organization,
+      title,
+      yearsOfExperience,
+      linkedinUrl,
+      mentorBio
+    } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({
@@ -106,6 +118,22 @@ export const register = async (req, res, next) => {
     const allowedRoles = ['mentee', 'mentor', 'admin'];
     const assignedRole = allowedRoles.includes(role) ? role : 'mentee';
 
+    // Validate mentor credibility requirements
+    if (assignedRole === 'mentor') {
+      if (!title || !title.trim() || !organization || !organization.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Mentor applicants must provide their professional title and current organization/project for credibility verification.'
+        });
+      }
+      if (!mentorBio || mentorBio.trim().length < 20) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please provide a brief summary (at least 20 characters) of your engineering background and mentorship expertise.'
+        });
+      }
+    }
+
     const passwordHash = await User.hashPassword(password);
     const user = await User.create({
       name: name.trim(),
@@ -122,17 +150,13 @@ export const register = async (req, res, next) => {
         : typeof interests === 'string'
         ? interests.split(',').map((s) => s.trim()).filter(Boolean)
         : [],
-      githubUsername: githubUsername ? githubUsername.trim().replace(/^@/, '') : ''
+      githubUsername: '', // Will be linked and synced from the dashboard post-registration
+      organization: organization ? organization.trim() : '',
+      title: title ? title.trim() : '',
+      yearsOfExperience: Number(yearsOfExperience) || 0,
+      linkedinUrl: linkedinUrl ? linkedinUrl.trim() : '',
+      mentorBio: mentorBio ? mentorBio.trim() : ''
     });
-
-    // Auto-sync contributions immediately if GitHub username was provided
-    if (user.githubUsername) {
-      try {
-        await performGitHubSync(user);
-      } catch (syncErr) {
-        console.warn('Auto-sync on register notice:', syncErr.message);
-      }
-    }
 
     const token = generateToken(user);
 
@@ -156,7 +180,17 @@ export const register = async (req, res, next) => {
 
 export const updateProfile = async (req, res, next) => {
   try {
-    const { name, skills, interests, githubUsername } = req.body;
+    const {
+      name,
+      skills,
+      interests,
+      githubUsername,
+      organization,
+      title,
+      yearsOfExperience,
+      linkedinUrl,
+      mentorBio
+    } = req.body;
     const user = req.user;
 
     if (name) user.name = name.trim();
@@ -165,16 +199,19 @@ export const updateProfile = async (req, res, next) => {
     if (typeof githubUsername !== 'undefined') {
       user.githubUsername = githubUsername.trim().replace(/^@/, '');
     }
+    if (organization !== undefined) user.organization = organization.trim();
+    if (title !== undefined) user.title = title.trim();
+    if (yearsOfExperience !== undefined) user.yearsOfExperience = Number(yearsOfExperience) || 0;
+    if (linkedinUrl !== undefined) user.linkedinUrl = linkedinUrl.trim();
+    if (mentorBio !== undefined) user.mentorBio = mentorBio.trim();
 
     await user.save();
 
-    // Auto-sync contributions if GitHub username is present
+    // Auto-sync contributions in background if GitHub username is present
     if (user.githubUsername) {
-      try {
-        await performGitHubSync(user);
-      } catch (syncErr) {
-        console.warn('Auto-sync on updateProfile notice:', syncErr.message);
-      }
+      performGitHubSync(user).catch((syncErr) => {
+        console.warn('Background auto-sync on updateProfile notice:', syncErr.message);
+      });
     }
 
     res.status(200).json({ success: true, message: 'Profile updated successfully.', user });

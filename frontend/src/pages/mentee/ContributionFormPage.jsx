@@ -17,7 +17,7 @@ export const ContributionFormPage = () => {
   const { id } = useParams(); // If present, edit mode
   const isEdit = Boolean(id);
   const navigate = useNavigate();
-  const { apiFetch } = useAuth();
+  const { apiFetch, user } = useAuth();
 
   const [formData, setFormData] = useState({
     title: '',
@@ -122,7 +122,8 @@ export const ContributionFormPage = () => {
 
       setSuccessMsg(res.message || 'Contribution saved!');
       setTimeout(() => {
-        navigate('/mentee/dashboard');
+        const dest = user?.role === 'mentor' ? '/mentor/dashboard' : user?.role === 'admin' ? '/admin/dashboard' : '/mentee/dashboard';
+        navigate(dest);
       }, 1000);
     } catch (err) {
       setErrorMsg(err.message || 'Failed to save contribution.');

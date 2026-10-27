@@ -264,8 +264,7 @@ ContribHub/
 │   │   ├── models/          # Mongoose schemas (User, Contribution, Assignment)
 │   │   ├── routes/          # Express route definitions
 │   │   ├── app.js           # Express app setup, middleware, static serving
-│   │   ├── server.js        # Entry point, DB connection, server start
-│   │   └── seed.js          # Demo data seeder
+│   │   └── server.js        # Entry point, DB connection, server start
 │   ├── .env.example
 │   └── package.json
 ├── frontend/

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { User, Shield, Compass, Code2, Save, CheckCircle, RefreshCw } from 'lucide-react';
 
@@ -9,11 +9,32 @@ export const ProfilePage = () => {
   const [githubUsername, setGithubUsername] = useState(user?.githubUsername || '');
   const [skills, setSkills] = useState(user?.skills ? user.skills.join(', ') : '');
   const [interests, setInterests] = useState(user?.interests ? user.interests.join(', ') : '');
+  const [title, setTitle] = useState(user?.title || '');
+  const [organization, setOrganization] = useState(user?.organization || '');
+  const [yearsOfExperience, setYearsOfExperience] = useState(user?.yearsOfExperience || 0);
+  const [linkedinUrl, setLinkedinUrl] = useState(user?.linkedinUrl || '');
+  const [mentorBio, setMentorBio] = useState(user?.mentorBio || '');
+
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+
+  // Keep fields synchronized when user object is fetched or updated
+  useEffect(() => {
+    if (user) {
+      setName(user.name || '');
+      setGithubUsername(user.githubUsername || '');
+      setSkills(Array.isArray(user.skills) ? user.skills.join(', ') : '');
+      setInterests(Array.isArray(user.interests) ? user.interests.join(', ') : '');
+      setTitle(user.title || '');
+      setOrganization(user.organization || '');
+      setYearsOfExperience(user.yearsOfExperience || 0);
+      setLinkedinUrl(user.linkedinUrl || '');
+      setMentorBio(user.mentorBio || '');
+    }
+  }, [user]);
 
   const handleSyncContributions = async () => {
     if (!githubUsername.trim()) {
@@ -53,7 +74,12 @@ export const ProfilePage = () => {
           name,
           githubUsername,
           skills: skillsArray,
-          interests: interestsArray
+          interests: interestsArray,
+          title,
+          organization,
+          yearsOfExperience,
+          linkedinUrl,
+          mentorBio
         })
       });
 
@@ -221,6 +247,81 @@ export const ProfilePage = () => {
               className="form-control"
             />
           </div>
+
+          {/* Mentor Credibility Fields */}
+          {user?.role === 'mentor' && (
+            <div style={{
+              marginTop: '1.75rem',
+              padding: '1.25rem',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--bg-surface)',
+              boxShadow: 'var(--nm-shadow-inset)',
+              border: '1px solid var(--primary-border)'
+            }}>
+              <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '1rem' }}>
+                Mentor Credibility & Professional Background
+              </h4>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.85rem' }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Professional Title</label>
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="e.g. Staff Engineer"
+                    className="form-control"
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Organization / Project</label>
+                  <input
+                    type="text"
+                    value={organization}
+                    onChange={(e) => setOrganization(e.target.value)}
+                    placeholder="e.g. Linux Foundation"
+                    className="form-control"
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '0.75rem', marginBottom: '0.85rem' }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Years of Experience</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="40"
+                    value={yearsOfExperience}
+                    onChange={(e) => setYearsOfExperience(e.target.value)}
+                    className="form-control"
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">LinkedIn or Portfolio</label>
+                  <input
+                    type="url"
+                    value={linkedinUrl}
+                    onChange={(e) => setLinkedinUrl(e.target.value)}
+                    placeholder="https://linkedin.com/in/..."
+                    className="form-control"
+                  />
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Mentorship Credibility & Track Record</label>
+                <textarea
+                  rows={3}
+                  value={mentorBio}
+                  onChange={(e) => setMentorBio(e.target.value)}
+                  placeholder="Summarize your open-source contributions, engineering leadership, and mentoring achievements..."
+                  className="form-control"
+                  style={{ resize: 'vertical' }}
+                />
+              </div>
+            </div>
+          )}
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2rem' }}>
             <button

@@ -3,15 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   GitPullRequest,
-  User as UserIcon,
   LogOut,
   Shield,
   Compass,
-  Users,
-  Code2,
-  ChevronRight,
-  Github,
-  ExternalLink
+  Code2
 } from 'lucide-react';
 
 export const Navbar = () => {
@@ -46,18 +41,18 @@ export const Navbar = () => {
       case 'mentee':
         return '/mentee/dashboard';
       default:
-        return '/';
+        return '/login';
     }
   };
 
   return (
     <header style={{
-      borderBottom: '1px solid var(--border-color)',
-      background: 'rgba(9, 13, 22, 0.85)',
-      backdropFilter: 'blur(16px)',
+      background: 'var(--bg-surface)',
+      boxShadow: '0 4px 20px rgba(166, 180, 200, 0.25)',
       position: 'sticky',
       top: 0,
-      zIndex: 100
+      zIndex: 100,
+      borderBottom: '1px solid var(--border-color)'
     }}>
       <div style={{
         maxWidth: '1280px',
@@ -75,72 +70,70 @@ export const Navbar = () => {
           textDecoration: 'none'
         }}>
           <div style={{
-            background: 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)',
+            background: 'var(--bg-surface)',
+            boxShadow: 'var(--nm-shadow-btn)',
             width: '38px',
             height: '38px',
-            borderRadius: '10px',
+            borderRadius: '11px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#fff',
-            boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)'
+            color: 'var(--primary)'
           }}>
-            <GitPullRequest size={22} strokeWidth={2.5} />
+            <GitPullRequest size={20} />
           </div>
           <div>
             <div style={{
-              fontSize: '1.25rem',
+              fontSize: '1.2rem',
               fontWeight: 800,
               fontFamily: 'var(--font-heading)',
               letterSpacing: '-0.02em',
-              background: 'linear-gradient(to right, #ffffff, #cbd5e1)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent'
+              color: 'var(--text-primary)'
             }}>
-              Contrib<span style={{ color: '#6366f1', WebkitTextFillColor: '#6366f1' }}>Hub</span>
+              Contrib<span style={{ color: 'var(--primary)' }}>Hub</span>
             </div>
             <div style={{
               fontSize: '0.65rem',
               textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-              color: 'var(--text-muted)',
-              marginTop: '-3px'
+              letterSpacing: '0.06em',
+              color: 'var(--text-muted)'
             }}>
-              OSC Mentorship Platform
+              Mentorship Platform
             </div>
           </div>
         </Link>
 
         {/* User Info & Controls */}
         {user ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
               {getRoleBadge(user.role)}
-              
+
               <Link to="/profile" style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.65rem',
-                padding: '0.4rem 0.8rem',
-                borderRadius: 'var(--radius-sm)',
-                background: 'var(--bg-subtle)',
-                border: '1px solid var(--border-color)',
+                gap: '0.6rem',
+                padding: '0.35rem 0.75rem',
+                borderRadius: '10px',
+                background: 'var(--bg-surface)',
+                boxShadow: 'var(--nm-shadow-btn)',
                 color: 'var(--text-primary)',
-                fontSize: '0.85rem',
+                fontSize: '0.825rem',
                 fontWeight: 600,
-                transition: 'all 0.2s ease'
+                transition: 'all 0.15s ease'
               }}>
                 <div style={{
-                  width: '26px',
-                  height: '26px',
+                  width: '24px',
+                  height: '24px',
                   borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #4f46e5, #06b6d4)',
+                  background: 'var(--bg-surface)',
+                  boxShadow: 'var(--nm-shadow-inset)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontSize: '0.75rem',
                   fontWeight: 700,
-                  color: '#fff'
+                  color: 'var(--primary)'
                 }}>
                   {user.name.charAt(0).toUpperCase()}
                 </div>
@@ -148,19 +141,17 @@ export const Navbar = () => {
               </Link>
             </div>
 
-
             <button
               onClick={handleLogout}
               className="btn btn-outline btn-sm"
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.4rem',
-                color: 'var(--text-secondary)'
+                gap: '0.35rem'
               }}
               title="Sign Out"
             >
-              <LogOut size={15} />
+              <LogOut size={14} />
               <span>Sign Out</span>
             </button>
           </div>

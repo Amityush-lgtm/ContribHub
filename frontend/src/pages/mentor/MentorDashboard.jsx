@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 
 export const MentorDashboard = () => {
-  const { user, apiFetch } = useAuth();
+  const { user, apiFetch, refreshUser } = useAuth();
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filterTab, setFilterTab] = useState('pending'); // 'pending' | 'approved' | 'changes_requested' | 'all'
@@ -46,6 +46,8 @@ export const MentorDashboard = () => {
   const [activeView, setActiveView] = useState('queue'); // 'queue' | 'my_contributions'
   const [myContributions, setMyContributions] = useState([]);
   const [syncingMyGitHub, setSyncingMyGitHub] = useState(false);
+  const [showMyGithubModal, setShowMyGithubModal] = useState(false);
+  const [inputGithubUsername, setInputGithubUsername] = useState(user?.githubUsername || '');
 
   const loadData = async () => {
     try {
@@ -77,9 +79,10 @@ export const MentorDashboard = () => {
     }
   };
 
-  const handleSyncMyGitHub = async () => {
-    if (!user?.githubUsername) {
-      alert('Please link your GitHub username in your Profile first.');
+  const handleSyncMyGitHub = async (overrideUsername) => {
+    const targetUsername = overrideUsername || user?.githubUsername || inputGithubUsername;
+    if (!targetUsername || !targetUsername.trim()) {
+      setShowMyGithubModal(true);
       return;
     }
     setSyncingMyGitHub(true);
@@ -87,9 +90,11 @@ export const MentorDashboard = () => {
     try {
       const res = await apiFetch('/api/contributions/sync/me', {
         method: 'POST',
-        body: JSON.stringify({ githubUsername: user.githubUsername })
+        body: JSON.stringify({ githubUsername: targetUsername.trim() })
       });
       setMentorSyncMessage({ type: 'success', text: res.message });
+      setShowMyGithubModal(false);
+      if (refreshUser) await refreshUser();
       const freshMine = await apiFetch('/api/contributions/mine');
       setMyContributions(freshMine.contributions || []);
     } catch (err) {
@@ -173,11 +178,12 @@ export const MentorDashboard = () => {
         ? c.reviewStatus === 'submitted'
         : c.reviewStatus === filterTab;
 
+    const query = searchQuery.toLowerCase();
     const matchesSearch =
       !searchQuery ||
-      c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.projectName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (c.menteeId?.name && c.menteeId.name.toLowerCase().includes(searchQuery.toLowerCase()));
+      Boolean(c.title?.toLowerCase().includes(query)) ||
+      Boolean(c.projectName?.toLowerCase().includes(query)) ||
+      Boolean(c.menteeId?.name?.toLowerCase().includes(query));
 
     return matchesTab && matchesSearch;
   });
@@ -194,12 +200,11 @@ export const MentorDashboard = () => {
         marginBottom: '2rem'
       }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.25rem' }}>
-            <span className="badge badge-mentor"><Compass size={13} /> Mentor Workspace</span>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Phase 3: Review & Evaluation Workflow</span>
-          </div>
-          <h1 style={{ fontSize: '1.85rem', fontWeight: 800 }}>Assigned Mentees & Review Queue</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.925rem' }}>
+          <span className="eyebrow">A Calmer Way to Mentor</span>
+          <h1 style={{ fontSize: '2.4rem', fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+            Assigned Mentees & Review Queue
+          </h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', maxWidth: '620px' }}>
             Review incoming contribution submissions, evaluate technical code & explanations, and guide your cohort.
           </p>
         </div>
@@ -245,6 +250,56 @@ export const MentorDashboard = () => {
         </div>
       )}
 
+      {/* Newly Registered / Unlinked GitHub Mentor Banner */}
+      {!user?.githubUsername && (
+        <div style={{
+          background: 'var(--bg-surface)',
+          boxShadow: 'var(--nm-shadow-raised)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '1.75rem 2rem',
+          marginBottom: '2rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '1.5rem',
+          border: '1px solid var(--primary-border)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', maxWidth: '640px' }}>
+            <div style={{
+              width: '52px',
+              height: '52px',
+              borderRadius: '16px',
+              background: 'var(--bg-surface)',
+              boxShadow: 'var(--nm-shadow-btn)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--primary)',
+              flexShrink: 0
+            }}>
+              <Github size={26} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
+                Connect your GitHub profile
+              </h3>
+              <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+                Link your GitHub account to import and showcase your own open-source pull requests and engineering track record in your mentor portfolio.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowMyGithubModal(true)}
+            className="btn btn-primary"
+            style={{ borderRadius: '14px', padding: '0.75rem 1.4rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            <Github size={16} />
+            <span>Link & Sync GitHub</span>
+          </button>
+        </div>
+      )}
+
       {/* Workspace Mode Switcher: Review Queue vs My Contributions */}
       <div style={{
         display: 'flex',
@@ -252,7 +307,8 @@ export const MentorDashboard = () => {
         gap: '0.5rem',
         marginBottom: '2rem',
         padding: '0.35rem',
-        background: 'rgba(15, 23, 42, 0.8)',
+        background: 'var(--bg-surface)',
+        boxShadow: 'var(--nm-shadow-inset)',
         borderRadius: 'var(--radius-sm)',
         border: '1px solid var(--border-color)',
         width: 'fit-content'
@@ -287,7 +343,8 @@ export const MentorDashboard = () => {
             gap: '1rem',
             marginBottom: '1.5rem',
             padding: '1.25rem',
-            background: 'rgba(15, 23, 42, 0.6)',
+            background: 'var(--bg-surface)',
+            boxShadow: 'var(--nm-shadow-inset)',
             borderRadius: 'var(--radius-md)',
             border: '1px solid var(--border-color)'
           }}>
@@ -345,7 +402,7 @@ export const MentorDashboard = () => {
                     padding: '1.25rem',
                     borderRadius: 'var(--radius-md)',
                     border: '1px solid var(--border-color)',
-                    background: 'rgba(15, 23, 42, 0.7)'
+                    background: 'var(--bg-surface)'
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
@@ -556,7 +613,7 @@ export const MentorDashboard = () => {
                     padding: '1.35rem',
                     borderRadius: 'var(--radius-md)',
                     border: '1px solid var(--border-color)',
-                    background: 'rgba(15, 23, 42, 0.75)'
+                    background: 'var(--bg-surface)'
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
@@ -678,7 +735,8 @@ export const MentorDashboard = () => {
                     style={{
                       padding: '1rem',
                       borderRadius: 'var(--radius-sm)',
-                      background: 'rgba(15, 23, 42, 0.6)',
+                      background: 'var(--bg-surface)',
+                      boxShadow: 'var(--nm-shadow-inset)',
                       border: '1px solid var(--border-color)'
                     }}
                   >
@@ -784,7 +842,7 @@ export const MentorDashboard = () => {
         <div className="modal-overlay" onClick={() => setReviewingContrib(null)}>
           <div
             className="glass-panel"
-            style={{ width: '100%', maxWidth: '600px', padding: '2rem', background: 'rgba(15, 23, 42, 0.98)' }}
+            style={{ width: '100%', maxWidth: '600px', padding: '2rem', background: 'var(--bg-surface)', boxShadow: 'var(--nm-shadow-raised)' }}
             onClick={(e) => e.stopPropagation()}
           >
             <h2 style={{ fontSize: '1.35rem', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -905,6 +963,66 @@ export const MentorDashboard = () => {
                   className="btn btn-primary"
                 >
                   {submittingReview ? 'Saving...' : 'Submit Evaluation'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* GitHub Username Modal for Mentor first-time sync */}
+      {showMyGithubModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '1rem'
+        }}>
+          <div className="glass-panel" style={{ width: '100%', maxWidth: '440px', padding: '1.75rem' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Github size={20} />
+              <span>Link Your GitHub Account</span>
+            </h3>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
+              Enter your public GitHub username. ContribHub will discover your public pull requests and populate your personal mentor contributions view.
+            </p>
+            <form onSubmit={(e) => { e.preventDefault(); handleSyncMyGitHub(inputGithubUsername); }}>
+              <div className="form-group">
+                <label className="form-label">GitHub Username</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. torvalds or octocat"
+                  value={inputGithubUsername}
+                  onChange={(e) => setInputGithubUsername(e.target.value)}
+                  className="form-control"
+                  autoFocus
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowMyGithubModal(false)}
+                  className="btn btn-outline btn-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={syncingMyGitHub || !inputGithubUsername.trim()}
+                  className="btn btn-primary btn-sm"
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                >
+                  {syncingMyGitHub && <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} />}
+                  <span>{syncingMyGitHub ? 'Syncing...' : 'Start Sync'}</span>
                 </button>
               </div>
             </form>

@@ -43,6 +43,31 @@ const userSchema = new mongoose.Schema(
       trim: true,
       default: ''
     },
+    // Mentor credibility fields
+    organization: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    title: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    yearsOfExperience: {
+      type: Number,
+      default: 0
+    },
+    linkedinUrl: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    mentorBio: {
+      type: String,
+      trim: true,
+      default: ''
+    },
     isActive: {
       type: Boolean,
       default: true

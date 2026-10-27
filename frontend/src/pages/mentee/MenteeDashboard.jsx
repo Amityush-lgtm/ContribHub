@@ -26,11 +26,12 @@ import {
   Trash2,
   Send,
   RefreshCw,
-  Github
+  Github,
+  Check
 } from 'lucide-react';
 
 export const MenteeDashboard = () => {
-  const { user, apiFetch } = useAuth();
+  const { user, apiFetch, refreshUser } = useAuth();
   const [assignment, setAssignment] = useState(null);
   const [contributions, setContributions] = useState([]);
   const [stats, setStats] = useState({
@@ -107,6 +108,7 @@ export const MenteeDashboard = () => {
       });
       setSyncMessage({ type: 'success', text: res.message });
       setShowGithubModal(false);
+      if (refreshUser) await refreshUser();
       await loadData();
     } catch (err) {
       setSyncMessage({ type: 'error', text: err.message || 'Failed to sync with GitHub' });
@@ -137,73 +139,277 @@ export const MenteeDashboard = () => {
 
   const filteredContributions = contributions.filter((c) => {
     const matchesFilter = activeFilter === 'all' || c.reviewStatus === activeFilter;
+    const query = searchTerm.toLowerCase();
     const matchesSearch =
       !searchTerm ||
-      c.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.projectName.toLowerCase().includes(searchTerm.toLowerCase());
+      Boolean(c.title?.toLowerCase().includes(query)) ||
+      Boolean(c.projectName?.toLowerCase().includes(query));
     return matchesFilter && matchesSearch;
   });
 
+  const totalCount = contributions.length;
+  const progressPercent = totalCount > 0 ? Math.round((stats.approved / totalCount) * 100) : 0;
+
   return (
     <div>
-      {/* Top Banner */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '1rem',
-        marginBottom: '2rem'
-      }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.25rem' }}>
-            <span className="badge badge-mentee"><Code2 size={13} /> Mentee Workspace</span>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Phase 2: Contribution Management</span>
-          </div>
-          <h1 style={{ fontSize: '1.85rem', fontWeight: 800 }}>My Contribution Portfolio</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.925rem' }}>
-            Document your open-source work, submit technical records, and track mentor evaluations.
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <button
-            onClick={() => handleSyncGitHub()}
-            disabled={syncing}
-            className="btn btn-primary"
-            style={{
+      {/* Newly Registered / Unlinked GitHub Welcome Banner */}
+      {!user?.githubUsername && (
+        <div style={{
+          background: 'var(--bg-surface)',
+          boxShadow: 'var(--nm-shadow-raised)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '1.75rem 2rem',
+          marginBottom: '2.5rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '1.5rem',
+          border: '1px solid var(--primary-border)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', maxWidth: '640px' }}>
+            <div style={{
+              width: '52px',
+              height: '52px',
+              borderRadius: '16px',
+              background: 'var(--bg-surface)',
+              boxShadow: 'var(--nm-shadow-btn)',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.75rem 1.25rem',
-              cursor: syncing ? 'not-allowed' : 'pointer'
-            }}
-            title="Automatically import your latest Pull Requests from GitHub"
+              justifyContent: 'center',
+              color: 'var(--primary)',
+              flexShrink: 0
+            }}>
+              <Github size={26} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
+                Connect your GitHub profile to start
+              </h3>
+              <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+                Link your GitHub account to automatically discover your public pull requests, populate your mentorship portfolio, and track review progress in real time.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowGithubModal(true)}
+            className="btn btn-primary"
+            style={{ borderRadius: '14px', padding: '0.75rem 1.4rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
           >
-            <RefreshCw
-              size={17}
-              style={{
-                animation: syncing ? 'spin 1s linear infinite' : 'none'
-              }}
-            />
-            <span>{syncing ? 'Syncing GitHub...' : 'Sync GitHub PRs'}</span>
+            <Github size={16} />
+            <span>Link & Sync GitHub</span>
           </button>
+        </div>
+      )}
+
+      {/* Stillpoint Hero Section: Left Hero + Right Focus Card */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'minmax(320px, 1.2fr) minmax(320px, 1fr)',
+        gap: '2.5rem',
+        alignItems: 'center',
+        marginBottom: '3rem'
+      }}>
+        {/* Left Hero Narrative */}
+        <div>
+          <span className="eyebrow">A Calmer Way to Contribute</span>
+          <h1 style={{
+            fontSize: '2.75rem',
+            fontWeight: 800,
+            letterSpacing: '-0.035em',
+            color: 'var(--text-primary)',
+            lineHeight: 1.15,
+            marginBottom: '1rem'
+          }}>
+            Make space for deep focus.
+          </h1>
+          <p style={{
+            color: 'var(--text-secondary)',
+            fontSize: '1.05rem',
+            lineHeight: 1.65,
+            maxWidth: '520px',
+            marginBottom: '2rem'
+          }}>
+            Shape quieter workdays with guided mentorship, gentle progress cues, and an interface that stays out of your way.
+          </p>
+
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '2rem' }}>
+            <button
+              onClick={() => handleSyncGitHub()}
+              disabled={syncing}
+              className="btn btn-primary"
+              style={{
+                borderRadius: '16px',
+                padding: '0.85rem 1.6rem',
+                fontSize: '0.95rem'
+              }}
+            >
+              <RefreshCw
+                size={16}
+                style={{
+                  animation: syncing ? 'spin 1s linear infinite' : 'none'
+                }}
+              />
+              <span>{syncing ? 'Syncing...' : 'Sync GitHub PRs'}</span>
+            </button>
+
+            <Link
+              to="/profile"
+              className="btn btn-secondary"
+              style={{
+                borderRadius: '16px',
+                padding: '0.85rem 1.6rem',
+                fontSize: '0.95rem'
+              }}
+            >
+              See how it works
+            </Link>
+          </div>
+
+          {/* Feature Check Chips */}
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div className="feature-chip">
+              <Check size={14} style={{ color: 'var(--primary)' }} />
+              <span>Distraction-free</span>
+            </div>
+            <div className="feature-chip">
+              <Check size={14} style={{ color: 'var(--primary)' }} />
+              <span>Private by default</span>
+            </div>
+            <div className="feature-chip">
+              <Check size={14} style={{ color: 'var(--primary)' }} />
+              <span>Auto-synced</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Focus Card - Direct Stillpoint Composition */}
+        <div className="glass-panel" style={{
+          padding: '2.25rem',
+          borderRadius: 'var(--radius-xl)'
+        }}>
+          {/* Card Header */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1.75rem' }}>
+            <div>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.2rem' }}>
+                Contribution focus
+              </h2>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                {assignment?.cohortName || 'Active Cohort'} · 90 minute block
+              </div>
+            </div>
+            <span className="badge badge-active">Ready</span>
+          </div>
+
+          {/* Centerpiece Dial / Gauge */}
+          <div style={{ marginBottom: '2rem' }}>
+            <div className="nm-gauge-outer">
+              <div className="nm-gauge-inner">
+                <div style={{
+                  fontSize: '2.5rem',
+                  fontWeight: 800,
+                  color: 'var(--text-primary)',
+                  letterSpacing: '-0.03em',
+                  lineHeight: 1
+                }}>
+                  {stats.approved}:{stats.submitted}
+                </div>
+                <div style={{
+                  fontSize: '0.675rem',
+                  fontWeight: 700,
+                  color: 'var(--text-muted)',
+                  letterSpacing: '0.1em',
+                  textTransform: 'uppercase',
+                  marginTop: '0.4rem'
+                }}>
+                  APPROVED / REVIEW
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Session Progress Bar */}
+          <div style={{ marginBottom: '2rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+              <span>Session progress</span>
+              <span>{progressPercent}%</span>
+            </div>
+            <div className="nm-progress-track">
+              <div className="nm-progress-fill" style={{ width: `${Math.max(progressPercent, 8)}%` }} />
+            </div>
+          </div>
+
+          {/* 3 Bottom Stat Tiles */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '0.85rem'
+          }}>
+            <div style={{
+              background: 'var(--bg-surface)',
+              boxShadow: 'var(--nm-shadow-flat)',
+              borderRadius: '18px',
+              padding: '1rem 0.5rem',
+              textAlign: 'center',
+              border: '1px solid var(--border-color)'
+            }}>
+              <div style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                {stats.approved}
+              </div>
+              <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '0.2rem' }}>
+                Approved
+              </div>
+            </div>
+
+            <div style={{
+              background: 'var(--bg-surface)',
+              boxShadow: 'var(--nm-shadow-flat)',
+              borderRadius: '18px',
+              padding: '1rem 0.5rem',
+              textAlign: 'center',
+              border: '1px solid var(--border-color)'
+            }}>
+              <div style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                {stats.submitted}
+              </div>
+              <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '0.2rem' }}>
+                In Review
+              </div>
+            </div>
+
+            <div style={{
+              background: 'var(--bg-surface)',
+              boxShadow: 'var(--nm-shadow-flat)',
+              borderRadius: '18px',
+              padding: '1rem 0.5rem',
+              textAlign: 'center',
+              border: '1px solid var(--border-color)'
+            }}>
+              <div style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                {totalCount}
+              </div>
+              <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '0.2rem' }}>
+                Total PRs
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Sync Status Alert Banner */}
       {syncMessage && (
         <div style={{
-          marginBottom: '1.5rem',
+          marginBottom: '2rem',
           padding: '0.85rem 1.25rem',
           borderRadius: 'var(--radius-sm)',
-          background: syncMessage.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+          background: syncMessage.type === 'success' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
           border: `1px solid ${syncMessage.type === 'success' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
-          color: syncMessage.type === 'success' ? '#34d399' : '#f87171',
+          color: syncMessage.type === 'success' ? '#059669' : '#dc2626',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          fontSize: '0.9rem'
+          fontSize: '0.9rem',
+          fontWeight: 600
         }}>
           <span>{syncMessage.text}</span>
           <button
@@ -221,58 +427,6 @@ export const MenteeDashboard = () => {
           </button>
         </div>
       )}
-
-      {/* Metrics Row */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '1.25rem',
-        marginBottom: '2rem'
-      }}>
-        <div className="glass-panel" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Approved</span>
-            <CheckCircle2 size={20} style={{ color: 'var(--success)' }} />
-          </div>
-          <div style={{ fontSize: '1.85rem', fontWeight: 800 }}>{stats.approved}</div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-            Validated by mentor
-          </div>
-        </div>
-
-        <div className="glass-panel" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Under Review</span>
-            <Clock size={20} style={{ color: 'var(--warning)' }} />
-          </div>
-          <div style={{ fontSize: '1.85rem', fontWeight: 800 }}>{stats.submitted}</div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-            Awaiting mentor review
-          </div>
-        </div>
-
-        <div className="glass-panel" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Changes Requested</span>
-            <AlertCircle size={20} style={{ color: '#f43f5e' }} />
-          </div>
-          <div style={{ fontSize: '1.85rem', fontWeight: 800 }}>{stats.changes_requested}</div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-            Requires revisions
-          </div>
-        </div>
-
-        <div className="glass-panel" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Drafts</span>
-            <FileText size={20} style={{ color: 'var(--primary)' }} />
-          </div>
-          <div style={{ fontSize: '1.85rem', fontWeight: 800 }}>{stats.draft}</div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-            Work in progress
-          </div>
-        </div>
-      </div>
 
       {/* Main Grid: Contributions List (2/3) + Mentor & Cohort Info (1/3) */}
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem', alignItems: 'start' }}>
@@ -364,7 +518,7 @@ export const MenteeDashboard = () => {
                     padding: '1.35rem',
                     borderRadius: 'var(--radius-md)',
                     border: '1px solid var(--border-color)',
-                    background: 'rgba(15, 23, 42, 0.75)'
+                    background: 'var(--bg-surface)'
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
@@ -511,7 +665,8 @@ export const MenteeDashboard = () => {
 
             {assignment && assignment.mentorId ? (
               <div style={{
-                background: 'rgba(15, 23, 42, 0.7)',
+                background: 'var(--bg-surface)',
+                boxShadow: 'var(--nm-shadow-inset)',
                 border: '1px solid var(--border-color)',
                 borderRadius: 'var(--radius-sm)',
                 padding: '1.25rem'
