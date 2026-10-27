@@ -48,6 +48,7 @@ export const createUser = async (req, res, next) => {
       email: email.toLowerCase().trim(),
       passwordHash,
       role,
+      githubUsername: req.body.githubUsername ? req.body.githubUsername.trim().replace(/^@/, '') : '',
       skills: Array.isArray(skills) ? skills : [],
       interests: Array.isArray(interests) ? interests : []
     });
@@ -70,7 +71,7 @@ export const updateUser = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'User not found.' });
     }
 
-    const fields = ['name', 'role', 'skills', 'interests', 'isActive'];
+    const fields = ['name', 'role', 'skills', 'interests', 'isActive', 'githubUsername'];
     fields.forEach((f) => {
       if (req.body[f] !== undefined) user[f] = req.body[f];
     });

@@ -1,36 +1,47 @@
 # ContribHub — Open-Source Mentorship & Contribution Management
 
-> **Phase 1: Foundation and Access Control — COMPLETED**
+[![GitHub Repository](https://img.shields.io/badge/GitHub-Amityush--lgtm%2FContribHub-blue?logo=github)](https://github.com/Amityush-lgtm/ContribHub)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-ContribHub is a full-stack MERN application for open-source mentorship programmes (e.g., college OSC clubs, developer communities). It provides structured tracking of contributions, mentor feedback loops, and administrative cohort governance.
+> **Phase 1: Foundation and Access Control — COMPLETED**  
+> **Phase 2: Contribution Management — COMPLETED**
 
----
+ContribHub is a modern full-stack MERN application designed for open-source mentorship programmes (e.g. college open-source clubs, developer communities). It provides structured tracking of contributions, mentor evaluation workflows, and administrative cohort governance.
 
-## 🌟 Phase 1 Deliverables & Architecture
-
-| Component | Technology | Implementation Details |
-| :--- | :--- | :--- |
-| **Backend API** | Node.js + Express (ES Modules) | Port `5000`, `/api` prefix, RESTful endpoints |
-| **Database** | MongoDB + Mongoose | Robust models (`User`, `MentorshipAssignment`, `Contribution`), automatic in-memory DB fallback for out-of-the-box local execution |
-| **Authentication** | JWT + bcryptjs | Token-based authentication, password hashing, 7-day expiration |
-| **Security & RBAC** | Express Middleware | Server-side role checks (`requireAuth`, `requireRole('admin' | 'mentor' | 'mentee')`) preventing cross-role access |
-| **Frontend** | React 18 + Vite | Port `5173`, responsive modern glassmorphic UI, custom CSS design system |
-| **Routing** | React Router DOM | Protected route guards, unauthorized (403) handling, role-specific layouts |
+GitHub remains the source of truth for code, issues, commits, and pull requests. ContribHub provides the structured mentorship and reporting layer around that work.
 
 ---
 
-## 👥 Seeded Demo Credentials
+## 🌟 Architecture & Completed Phases
 
-When the backend starts up, demo accounts are automatically seeded into the database:
+### Phase 1: Foundation & RBAC
+- **Authentication**: JWT token-based authentication and secure `bcryptjs` password hashing.
+- **Account Registration & Login**: Users can register as Mentees or Mentors with their GitHub usernames, skills, and interests.
+- **Role-Based Access Control**: Server-enforced role restrictions across `Admin`, `Mentor`, and `Mentee`.
+- **Database**: Mongoose models (`User`, `MentorshipAssignment`, `Contribution`) with graceful fallback to MongoMemoryServer for development.
+- **Frontend Core**: React 18 + Vite, custom glassmorphic CSS design system, Google Fonts (*Outfit* and *Plus Jakarta Sans*), and `ProtectedRoute` guard with 403 / 404 handling.
 
-| Role | Name | Email | Password | Access Area |
-| :--- | :--- | :--- | :--- | :--- |
-| **Admin** | Sarah Connor | `admin@contribhub.dev` | `Password123!` | `/admin/dashboard` |
-| **Mentor** | David Chen | `mentor@contribhub.dev` | `Password123!` | `/mentor/dashboard` |
-| **Mentee** | Alex Rivera | `mentee@contribhub.dev` | `Password123!` | `/mentee/dashboard` |
-| **Mentee 2** | Maya Patel | `maya@contribhub.dev` | `Password123!` | `/mentee/dashboard` |
-
-> In the frontend UI, one-click demo chips allow instant filling and quick-switching between roles.
+### Phase 2: Contribution Management
+- **Structured Contribution Records**:
+  - Title, short summary, repository name, repository URL.
+  - Pull Request URL, Issue URL, and actual GitHub PR status (`open`, `review_requested`, `merged`, `closed`).
+  - Contribution type (`bug_fix`, `feature`, `documentation`, `testing`, `refactoring`, `research`, `other`).
+  - Technologies & frameworks used.
+  - Technical problem solved & architectural solution implemented.
+  - Validation checks performed (test suites, benchmarks, verification).
+  - Outcome / impact & evidence links.
+- **Workflow & Lifecycle**:
+  - `Draft` ➔ `Submitted` ➔ `Changes Requested` ➔ `Approved` / `Rejected`.
+  - Mentees can save drafts, edit existing drafts or revisions, submit records for mentor review, and delete drafts.
+- **Role-Aware Scoping & Inspection**:
+  - Mentees only see and manage their own submissions.
+  - Mentors only see submissions from mentees assigned to their cohort.
+  - Admins can monitor cohort-wide activity.
+- **Interactive UI**:
+  - Mentee dashboard with dynamic status pipeline cards, search, and status filters.
+  - Contribution creation/edit form (`/mentee/contributions/new` and `/mentee/contributions/edit/:id`).
+  - Full technical report inspection page (`/contributions/:id`) with mentor feedback preview and evidence links.
+  - Mentor dashboard review queue displaying incoming cohort submissions.
 
 ---
 
@@ -46,7 +57,7 @@ cd backend
 npm run dev
 # Server will run on http://localhost:5000
 ```
-*Note: If `MONGODB_URI` is not set in `backend/.env`, an automatic In-Memory MongoDB server starts seamlessly.*
+*Note: If MongoDB Atlas connection is configured in `backend/.env`, it will connect securely. If no URI is provided, an automatic In-Memory MongoDB server starts seamlessly.*
 
 ### 2. Start Frontend App
 ```bash
@@ -57,32 +68,19 @@ npm run dev
 
 ---
 
-## 🛡️ Role-Based Access Control Verification
+## 👥 Getting Started & User Accounts
 
-- **Admin (`/admin/dashboard`):**
-  - View overall platform metrics (Total Users, Mentors, Mentees, Active Pairings).
-  - Provision new users with role assignment (`mentee`, `mentor`, `admin`).
-  - Search and filter users by role and name.
-  - Pair mentors and mentees with cohort naming.
-  - Activate or deactivate accounts.
-
-- **Mentor (`/mentor/dashboard`):**
-  - Server-restricted query returning *only* their assigned mentees (`/api/users/my-mentees`).
-  - View mentee technical skills, interests, and pairing dates.
-  - Mentorship assessment criteria (Plan §4 guidance).
-
-- **Mentee (`/mentee/dashboard`):**
-  - View assigned mentor card with contact details and skills.
-  - Contribution status pipeline preview (Draft ➔ Submitted ➔ Changes Requested ➔ Approved).
-  - Update personal profile, skills, and areas of interest (`/profile`).
-
-- **Permission Enforcement:**
-  - Direct URL access to unauthorized dashboards is intercepted by `ProtectedRoute` and redirected to `/unauthorized` (403).
-  - Direct API calls to unauthorized endpoints return HTTP `403 Forbidden` from the Express layer.
+- **Sign In / Create Account**: Visit `http://localhost:5173/login` to sign in or create a new account with your name, email, password, and GitHub username.
+- **Optional Demo Seeding**: If you want to seed sample demo accounts and a demo contribution for testing, run:
+  ```bash
+  cd backend
+  node src/seed.js
+  ```
 
 ---
 
-## 📋 Next Phase: Phase 2 (Contribution Management)
-- Contribution record model CRUD routes (`/api/contributions`)
-- Form for structured contribution fields (Problem solved, Solution description, Verification/tests, Evidence links, PR status)
-- Mentee contribution list and status tracking
+## 📋 Next Phase: Phase 3 (Mentor Review Workflow)
+- Mentor review queue action buttons: **Approve**, **Request Changes**, **Reject with Reason**.
+- Feedback and guidance entry modal / inline form with suggested next steps.
+- Real-time status update visible to mentee for revisions.
+- Audit timestamps (`reviewedAt`, `reviewedBy`).

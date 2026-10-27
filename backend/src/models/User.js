@@ -38,6 +38,11 @@ const userSchema = new mongoose.Schema(
       type: [String],
       default: []
     },
+    githubUsername: {
+      type: String,
+      trim: true,
+      default: ''
+    },
     isActive: {
       type: Boolean,
       default: true

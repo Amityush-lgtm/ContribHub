@@ -105,6 +105,32 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Register action
+  const register = async (userData) => {
+    setAuthError(null);
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData)
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || 'Registration failed');
+      }
+
+      localStorage.setItem('contribhub_token', data.token);
+      setToken(data.token);
+      setUser(data.user);
+      return data.user;
+    } catch (err) {
+      setAuthError(err.message);
+      throw err;
+    }
+  };
+
   // Logout action
   const logout = async () => {
     try {
@@ -136,6 +162,7 @@ export const AuthProvider = ({ children }) => {
         loading,
         authError,
         login,
+        register,
         logout,
         refreshUser,
         apiFetch,

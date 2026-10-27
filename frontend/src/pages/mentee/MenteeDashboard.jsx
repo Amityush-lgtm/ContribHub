@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
+  ReviewStatusBadge,
+  PRStatusBadge,
+  ContributionTypeBadge
+} from '../../components/StatusBadge';
+import {
   Code2,
   Compass,
   GitPullRequest,
@@ -12,50 +17,122 @@ import {
   PlusCircle,
   Calendar,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  ExternalLink,
+  Search,
+  Filter,
+  Eye,
+  FileEdit,
+  Trash2,
+  Send
 } from 'lucide-react';
 
 export const MenteeDashboard = () => {
   const { user, apiFetch } = useAuth();
   const [assignment, setAssignment] = useState(null);
+  const [contributions, setContributions] = useState([]);
+  const [stats, setStats] = useState({
+    total: 0,
+    draft: 0,
+    submitted: 0,
+    changes_requested: 0,
+    approved: 0
+  });
   const [loading, setLoading] = useState(true);
+  const [activeFilter, setActiveFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [assignRes, contribRes] = await Promise.all([
+        apiFetch('/api/assignments'),
+        apiFetch('/api/contributions/mine')
+      ]);
+
+      if (assignRes.assignments?.length > 0) {
+        setAssignment(assignRes.assignments[0]);
+      }
+      setContributions(contribRes.contributions || []);
+      if (contribRes.stats) {
+        setStats(contribRes.stats);
+      }
+    } catch (err) {
+      console.error('Failed to load mentee dashboard data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchMyAssignment = async () => {
-      try {
-        setLoading(true);
-        const data = await apiFetch('/api/assignments');
-        if (data.assignments && data.assignments.length > 0) {
-          setAssignment(data.assignments[0]);
-        }
-      } catch (err) {
-        console.error('Failed to load mentee assignment:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+    loadData();
+  }, []);
 
-    fetchMyAssignment();
-  }, [apiFetch]);
+  const handleSubmitDraft = async (contribId) => {
+    if (!window.confirm('Submit this draft for mentor review?')) return;
+    try {
+      await apiFetch(`/api/contributions/${contribId}/submit`, { method: 'POST' });
+      await loadData();
+    } catch (err) {
+      alert(`Submission error: ${err.message}`);
+    }
+  };
+
+  const handleDeleteDraft = async (contribId) => {
+    if (!window.confirm('Delete this draft contribution?')) return;
+    try {
+      await apiFetch(`/api/contributions/${contribId}`, { method: 'DELETE' });
+      await loadData();
+    } catch (err) {
+      alert(`Delete error: ${err.message}`);
+    }
+  };
+
+  const filteredContributions = contributions.filter((c) => {
+    const matchesFilter = activeFilter === 'all' || c.reviewStatus === activeFilter;
+    const matchesSearch =
+      !searchTerm ||
+      c.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.projectName.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesFilter && matchesSearch;
+  });
 
   return (
     <div>
       {/* Top Banner */}
-      <div style={{ marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.25rem' }}>
-          <span className="badge badge-mentee"><Code2 size={13} /> Mentee Workspace</span>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Phase 1 Foundation</span>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '1rem',
+        marginBottom: '2rem'
+      }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.25rem' }}>
+            <span className="badge badge-mentee"><Code2 size={13} /> Mentee Workspace</span>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Phase 2: Contribution Management</span>
+          </div>
+          <h1 style={{ fontSize: '1.85rem', fontWeight: 800 }}>My Contribution Portfolio</h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.925rem' }}>
+            Document your open-source work, submit technical records, and track mentor evaluations.
+          </p>
         </div>
-        <h1 style={{ fontSize: '1.85rem', fontWeight: 800 }}>Welcome to your Contribution Hub</h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.925rem' }}>
-          Hello {user?.name}, record and track your open-source journey with structured mentorship guidance.
-        </p>
+
+        <Link
+          to="/mentee/contributions/new"
+          className="btn btn-primary"
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.25rem' }}
+        >
+          <PlusCircle size={18} />
+          <span>Record New Contribution</span>
+        </Link>
       </div>
 
       {/* Metrics Row */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
         gap: '1.25rem',
         marginBottom: '2rem'
       }}>
@@ -64,20 +141,20 @@ export const MenteeDashboard = () => {
             <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Approved</span>
             <CheckCircle2 size={20} style={{ color: 'var(--success)' }} />
           </div>
-          <div style={{ fontSize: '1.85rem', fontWeight: 800 }}>0</div>
+          <div style={{ fontSize: '1.85rem', fontWeight: 800 }}>{stats.approved}</div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-            Reviewed & validated by mentor
+            Validated by mentor
           </div>
         </div>
 
         <div className="glass-panel" style={{ padding: '1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Pending Review</span>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Under Review</span>
             <Clock size={20} style={{ color: 'var(--warning)' }} />
           </div>
-          <div style={{ fontSize: '1.85rem', fontWeight: 800 }}>0</div>
+          <div style={{ fontSize: '1.85rem', fontWeight: 800 }}>{stats.submitted}</div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-            Submitted records awaiting review
+            Awaiting mentor review
           </div>
         </div>
 
@@ -86,9 +163,9 @@ export const MenteeDashboard = () => {
             <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Changes Requested</span>
             <AlertCircle size={20} style={{ color: '#f43f5e' }} />
           </div>
-          <div style={{ fontSize: '1.85rem', fontWeight: 800 }}>0</div>
+          <div style={{ fontSize: '1.85rem', fontWeight: 800 }}>{stats.changes_requested}</div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-            Requires additional technical detail
+            Requires revisions
           </div>
         </div>
 
@@ -97,139 +174,311 @@ export const MenteeDashboard = () => {
             <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Drafts</span>
             <FileText size={20} style={{ color: 'var(--primary)' }} />
           </div>
-          <div style={{ fontSize: '1.85rem', fontWeight: 800 }}>0</div>
+          <div style={{ fontSize: '1.85rem', fontWeight: 800 }}>{stats.draft}</div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
             Work in progress
           </div>
         </div>
       </div>
 
-      {/* Main Grid: Assigned Mentor Card + Next Steps */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1.5rem', alignItems: 'start' }}>
-        {/* Mentor Info */}
-        <div className="glass-panel" style={{ padding: '1.75rem' }}>
-          <h2 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Compass size={20} style={{ color: '#22d3ee' }} />
-            <span>Your Assigned Mentor</span>
-          </h2>
-
-          {loading ? (
-            <p style={{ color: 'var(--text-muted)' }}>Loading mentor details...</p>
-          ) : assignment && assignment.mentorId ? (
+      {/* Main Grid: Contributions List (2/3) + Mentor & Cohort Info (1/3) */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem', alignItems: 'start' }}>
+        {/* Left Column: Contributions Records */}
+        <div>
+          {/* Filter & Search Bar */}
+          <div className="glass-panel" style={{ padding: '1rem 1.25rem', marginBottom: '1.25rem' }}>
             <div style={{
-              background: 'rgba(15, 23, 42, 0.7)',
-              border: '1px solid var(--border-color)',
-              borderRadius: 'var(--radius-sm)',
-              padding: '1.5rem'
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '1rem'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                <div style={{
-                  width: '52px',
-                  height: '52px',
-                  borderRadius: '12px',
-                  background: 'linear-gradient(135deg, #06b6d4, #3b82f6)',
-                  color: '#fff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 800,
-                  fontSize: '1.25rem'
-                }}>
-                  {assignment.mentorId.name.charAt(0)}
-                </div>
-                <div>
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{assignment.mentorId.name}</h3>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{assignment.mentorId.email}</p>
-                </div>
+              {/* Filter Tabs */}
+              <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                {[
+                  { id: 'all', label: `All (${contributions.length})` },
+                  { id: 'draft', label: `Drafts (${stats.draft})` },
+                  { id: 'submitted', label: `Submitted (${stats.submitted})` },
+                  { id: 'changes_requested', label: `Revisions (${stats.changes_requested})` },
+                  { id: 'approved', label: `Approved (${stats.approved})` }
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveFilter(tab.id)}
+                    className={`btn btn-sm ${activeFilter === tab.id ? 'btn-primary' : 'btn-outline'}`}
+                    style={{ padding: '0.3rem 0.65rem', fontSize: '0.775rem' }}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
               </div>
 
-              <div style={{ marginBottom: '1rem' }}>
-                <span style={{ fontSize: '0.775rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>
-                  Mentor Expertise:
-                </span>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-                  {assignment.mentorId.skills && assignment.mentorId.skills.length > 0 ? (
-                    assignment.mentorId.skills.map((skill, idx) => (
-                      <span key={idx} style={{
-                        background: 'rgba(6, 182, 212, 0.12)',
-                        color: '#67e8f9',
-                        padding: '0.2rem 0.55rem',
-                        borderRadius: '4px',
-                        fontSize: '0.75rem',
-                        fontWeight: 500
-                      }}>
-                        {skill}
-                      </span>
-                    ))
-                  ) : (
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>General Mentorship</span>
-                  )}
-                </div>
-              </div>
-
-              <div style={{
-                borderTop: '1px solid rgba(255, 255, 255, 0.05)',
-                paddingTop: '0.75rem',
-                display: 'flex',
-                justifyContent: 'space-between',
-                fontSize: '0.8rem',
-                color: 'var(--text-muted)'
-              }}>
-                <span>Cohort: <strong>{assignment.cohortName || 'Spring 2026'}</strong></span>
-                <span>Active Since {new Date(assignment.startDate).toLocaleDateString()}</span>
+              {/* Search Box */}
+              <div style={{ position: 'relative', minWidth: '220px' }}>
+                <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                <input
+                  type="text"
+                  placeholder="Search contributions..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="form-control"
+                  style={{ paddingLeft: '2.2rem', paddingRight: '0.75rem', fontSize: '0.8rem', paddingBlock: '0.4rem' }}
+                />
               </div>
             </div>
-          ) : (
-            <div style={{
+          </div>
+
+          {/* Records List */}
+          {loading ? (
+            <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+              Loading your contributions...
+            </div>
+          ) : filteredContributions.length === 0 ? (
+            <div className="glass-panel" style={{
+              padding: '3rem 2rem',
               textAlign: 'center',
-              padding: '2rem',
-              border: '1px dashed var(--border-color)',
-              borderRadius: 'var(--radius-sm)'
+              borderRadius: 'var(--radius-md)'
             }}>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
-                You have not been assigned to a mentor yet.
+              <GitPullRequest size={42} style={{ color: 'var(--text-muted)', marginBottom: '1rem' }} />
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+                No Contribution Records Found
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem', maxWidth: '420px', marginInline: 'auto' }}>
+                {searchTerm || activeFilter !== 'all'
+                  ? 'Try adjusting your search or status filter to see other records.'
+                  : 'You have not created any contribution records yet. Record your first bug fix, feature, or PR!'}
               </p>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                Your community administrator will assign a mentor to your profile shortly.
-              </p>
+              <Link to="/mentee/contributions/new" className="btn btn-primary btn-sm">
+                <PlusCircle size={15} />
+                <span>Record Your First Contribution</span>
+              </Link>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {filteredContributions.map((c) => (
+                <div
+                  key={c._id}
+                  className="glass-panel glass-panel-hover"
+                  style={{
+                    padding: '1.35rem',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border-color)',
+                    background: 'rgba(15, 23, 42, 0.75)'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: '280px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+                        <ReviewStatusBadge status={c.reviewStatus} />
+                        <ContributionTypeBadge type={c.contributionType} />
+                        <PRStatusBadge status={c.pullRequestStatus} />
+                      </div>
+
+                      <Link to={`/contributions/${c._id}`}>
+                        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
+                          {c.title}
+                        </h3>
+                      </Link>
+
+                      <div style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+                        <span style={{ color: 'var(--text-muted)' }}>Project: </span>
+                        <strong>{c.projectName}</strong>
+                        {c.summary && <span> — {c.summary}</span>}
+                      </div>
+
+                      {/* Tech Chips */}
+                      {c.technologies && c.technologies.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginBottom: '0.75rem' }}>
+                          {c.technologies.map((t, idx) => (
+                            <span
+                              key={idx}
+                              style={{
+                                background: 'rgba(99, 102, 241, 0.1)',
+                                color: '#a5b4fc',
+                                padding: '0.15rem 0.5rem',
+                                borderRadius: '4px',
+                                fontSize: '0.75rem',
+                                fontWeight: 500
+                              }}
+                            >
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Mentor Feedback Teaser if present */}
+                      {c.mentorFeedback && (
+                        <div style={{
+                          padding: '0.5rem 0.85rem',
+                          background: 'rgba(245, 158, 11, 0.1)',
+                          borderLeft: '3px solid var(--warning)',
+                          borderRadius: '4px',
+                          fontSize: '0.8rem',
+                          color: '#fbbf24',
+                          marginTop: '0.5rem'
+                        }}>
+                          <strong>Mentor Feedback: </strong>
+                          <span>{c.mentorFeedback}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Actions Menu */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+                      <Link
+                        to={`/contributions/${c._id}`}
+                        className="btn btn-outline btn-sm"
+                        style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem' }}
+                      >
+                        <Eye size={13} />
+                        <span>View</span>
+                      </Link>
+
+                      {['draft', 'changes_requested'].includes(c.reviewStatus) && (
+                        <Link
+                          to={`/mentee/contributions/edit/${c._id}`}
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem' }}
+                        >
+                          <FileEdit size={13} />
+                          <span>Edit</span>
+                        </Link>
+                      )}
+
+                      {c.reviewStatus === 'draft' && (
+                        <>
+                          <button
+                            onClick={() => handleSubmitDraft(c._id)}
+                            className="btn btn-primary btn-sm"
+                            style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem' }}
+                          >
+                            <Send size={13} />
+                            <span>Submit</span>
+                          </button>
+
+                          <button
+                            onClick={() => handleDeleteDraft(c._id)}
+                            className="btn btn-danger btn-sm"
+                            style={{ padding: '0.35rem 0.55rem', fontSize: '0.75rem' }}
+                            title="Delete Draft"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{
+                    marginTop: '0.75rem',
+                    paddingTop: '0.65rem',
+                    borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    fontSize: '0.75rem',
+                    color: 'var(--text-muted)'
+                  }}>
+                    <span>Updated {new Date(c.updatedAt).toLocaleDateString()}</span>
+                    {c.pullRequestUrl && (
+                      <a
+                        href={c.pullRequestUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: '#38bdf8' }}
+                      >
+                        <span>GitHub PR</span>
+                        <ExternalLink size={11} />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
 
-        {/* Phase 2 Preview & Preparation */}
+        {/* Right Column: Mentor & Cohort Info */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div className="glass-panel" style={{ padding: '1.5rem', borderLeft: '4px solid var(--primary)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-              <Sparkles size={18} style={{ color: 'var(--primary)' }} />
-              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Next: Phase 2 Contribution Logging</h3>
-            </div>
-            <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1rem' }}>
-              In Phase 2, you will be able to record open-source pull requests, explain the problem solved, describe validation steps, and submit for mentor sign-off!
-            </p>
-            <Link to="/profile" className="btn btn-outline btn-sm" style={{ width: '100%' }}>
-              <span>Configure Your Skills & Interests</span>
-              <ArrowRight size={14} />
-            </Link>
+          {/* Mentor Card */}
+          <div className="glass-panel" style={{ padding: '1.5rem' }}>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Compass size={18} style={{ color: '#22d3ee' }} />
+              <span>Assigned Mentor</span>
+            </h2>
+
+            {assignment && assignment.mentorId ? (
+              <div style={{
+                background: 'rgba(15, 23, 42, 0.7)',
+                border: '1px solid var(--border-color)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '1.25rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                  <div style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '10px',
+                    background: 'linear-gradient(135deg, #06b6d4, #3b82f6)',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 800,
+                    fontSize: '1.1rem'
+                  }}>
+                    {assignment.mentorId.name.charAt(0)}
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>{assignment.mentorId.name}</h3>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{assignment.mentorId.email}</p>
+                  </div>
+                </div>
+
+                {assignment.mentorId.skills && assignment.mentorId.skills.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginBottom: '0.75rem' }}>
+                    {assignment.mentorId.skills.map((skill, idx) => (
+                      <span key={idx} style={{
+                        background: 'rgba(6, 182, 212, 0.12)',
+                        color: '#67e8f9',
+                        padding: '0.15rem 0.45rem',
+                        borderRadius: '4px',
+                        fontSize: '0.725rem'
+                      }}>
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', borderTop: '1px solid rgba(255, 255, 255, 0.05)', paddingTop: '0.5rem' }}>
+                  Cohort: <strong>{assignment.cohortName || 'Spring 2026'}</strong>
+                </div>
+              </div>
+            ) : (
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                No mentor assigned yet. Contact your administrator.
+              </p>
+            )}
           </div>
 
-          <div className="glass-panel" style={{ padding: '1.5rem' }}>
-            <h4 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.75rem' }}>
-              Your Mentorship Checklist
-            </h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <CheckCircle2 size={16} style={{ color: 'var(--success)' }} />
-                <span>Account activated with Mentee role</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <CheckCircle2 size={16} style={{ color: assignment ? 'var(--success)' : 'var(--text-muted)' }} />
-                <span>Mentor paired by Admin ({assignment ? 'Done' : 'Pending'})</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)' }}>
-                <Clock size={16} />
-                <span>Phase 2: Submit first contribution draft</span>
-              </div>
-            </div>
+          {/* Contribution Recording Tips */}
+          <div className="glass-panel" style={{ padding: '1.5rem', borderLeft: '4px solid var(--primary)' }}>
+            <h3 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <Sparkles size={16} style={{ color: 'var(--primary)' }} />
+              <span>Mentorship Guide (Plan §4)</span>
+            </h3>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '0.75rem' }}>
+              Your mentor assesses the <strong>technical reasoning</strong> behind your contribution:
+            </p>
+            <ul style={{ fontSize: '0.775rem', color: 'var(--text-muted)', paddingLeft: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <li>Explain <em>why</em> the bug or limitation existed.</li>
+              <li>Detail how your solution resolves it.</li>
+              <li>Include automated tests run under Validation.</li>
+              <li>Provide direct GitHub PR and commit links.</li>
+            </ul>
           </div>
         </div>
       </div>

@@ -6,6 +6,7 @@ export const ProfilePage = () => {
   const { user, apiFetch, refreshUser } = useAuth();
 
   const [name, setName] = useState(user?.name || '');
+  const [githubUsername, setGithubUsername] = useState(user?.githubUsername || '');
   const [skills, setSkills] = useState(user?.skills ? user.skills.join(', ') : '');
   const [interests, setInterests] = useState(user?.interests ? user.interests.join(', ') : '');
   const [loading, setLoading] = useState(false);
@@ -26,6 +27,7 @@ export const ProfilePage = () => {
         method: 'PATCH',
         body: JSON.stringify({
           name,
+          githubUsername,
           skills: skillsArray,
           interests: interestsArray
         })
@@ -113,6 +115,30 @@ export const ProfilePage = () => {
               onChange={(e) => setName(e.target.value)}
               className="form-control"
             />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">GitHub Username</label>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <input
+                type="text"
+                value={githubUsername}
+                onChange={(e) => setGithubUsername(e.target.value)}
+                placeholder="e.g. Amityush-lgtm"
+                className="form-control"
+              />
+              {githubUsername && (
+                <a
+                  href={`https://github.com/${githubUsername}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn-outline btn-sm"
+                  style={{ flexShrink: 0 }}
+                >
+                  View Profile
+                </a>
+              )}
+            </div>
           </div>
 
           <div className="form-group">

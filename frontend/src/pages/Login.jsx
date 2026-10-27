@@ -5,21 +5,30 @@ import {
   GitPullRequest,
   Lock,
   Mail,
+  User,
   ArrowRight,
   ShieldAlert,
-  Shield,
-  Compass,
   Code2,
-  CheckCircle2
+  Compass,
+  Github,
+  CheckCircle2,
+  ExternalLink,
+  Sparkles
 } from 'lucide-react';
 
 export const Login = () => {
+  const [mode, setMode] = useState('login'); // 'login' | 'register'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [role, setRole] = useState('mentee');
+  const [githubUsername, setGithubUsername] = useState('');
+  const [skills, setSkills] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
-  const { login, user, isAuthenticated } = useAuth();
+  const { login, register, user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -30,14 +39,14 @@ export const Login = () => {
     }
   }, [isAuthenticated, user]);
 
-  const redirectToDashboard = (role) => {
+  const redirectToDashboard = (userRole) => {
     const from = location.state?.from?.pathname;
     if (from && !from.includes('/login')) {
       navigate(from, { replace: true });
       return;
     }
 
-    switch (role) {
+    switch (userRole) {
       case 'admin':
         navigate('/admin/dashboard', { replace: true });
         break;
@@ -52,7 +61,7 @@ export const Login = () => {
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
     if (!email || !password) {
       setErrorMsg('Please enter both email and password.');
@@ -66,148 +75,186 @@ export const Login = () => {
       const loggedUser = await login(email, password);
       redirectToDashboard(loggedUser.role);
     } catch (err) {
-      setErrorMsg(err.message || 'Login failed. Please check credentials.');
+      setErrorMsg(err.message || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSelectDemo = (demoEmail, demoPassword) => {
-    setEmail(demoEmail);
-    setPassword(demoPassword);
+  const handleRegisterSubmit = async (e) => {
+    e.preventDefault();
+    if (!name || !email || !password) {
+      setErrorMsg('Please provide your name, email, and password.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setErrorMsg('Password must be at least 6 characters long.');
+      return;
+    }
+
+    setLoading(true);
     setErrorMsg('');
+
+    try {
+      const newUser = await register({
+        name,
+        email,
+        password,
+        role,
+        githubUsername,
+        skills
+      });
+      setSuccessMsg(`Welcome to ContribHub, ${newUser.name}!`);
+      setTimeout(() => {
+        redirectToDashboard(newUser.role);
+      }, 700);
+    } catch (err) {
+      setErrorMsg(err.message || 'Registration failed.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div style={{
       minHeight: '100vh',
       display: 'flex',
+      flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '2rem 1.5rem',
+      padding: '2.5rem 1.5rem',
       position: 'relative'
     }}>
       {/* Background ambient glow */}
       <div style={{
         position: 'absolute',
-        top: '20%',
+        top: '25%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
-        width: '500px',
-        height: '350px',
-        background: 'radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%)',
-        filter: 'blur(60px)',
+        width: '650px',
+        height: '400px',
+        background: 'radial-gradient(circle, rgba(99, 102, 241, 0.16) 0%, rgba(6, 182, 212, 0.08) 50%, transparent 70%)',
+        filter: 'blur(70px)',
         pointerEvents: 'none'
       }} />
 
-      <div style={{ width: '100%', maxWidth: '460px', position: 'relative', zIndex: 1 }}>
+      <div style={{ width: '100%', maxWidth: '480px', position: 'relative', zIndex: 1 }}>
         {/* Brand Header */}
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
           <div style={{
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: '56px',
-            height: '56px',
-            borderRadius: '16px',
+            width: '60px',
+            height: '60px',
+            borderRadius: '18px',
             background: 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)',
             color: '#fff',
-            boxShadow: '0 8px 24px rgba(99, 102, 241, 0.45)',
+            boxShadow: '0 8px 28px rgba(99, 102, 241, 0.45)',
             marginBottom: '1rem'
           }}>
-            <GitPullRequest size={30} strokeWidth={2.5} />
+            <GitPullRequest size={32} strokeWidth={2.5} />
           </div>
 
           <h1 style={{
-            fontSize: '1.875rem',
+            fontSize: '2rem',
             fontWeight: 800,
-            marginBottom: '0.35rem',
+            marginBottom: '0.4rem',
             background: 'linear-gradient(to right, #ffffff, #cbd5e1)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent'
           }}>
-            Welcome to ContribHub
+            Contrib<span style={{ color: '#6366f1', WebkitTextFillColor: '#6366f1' }}>Hub</span>
           </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.925rem' }}>
-            Open-Source Mentorship & Contribution Layer
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
+            Open-Source Mentorship & Contribution Management
           </p>
-        </div>
 
-        {/* Demo Quick Accounts Card */}
-        <div className="glass-panel" style={{
-          padding: '1.25rem',
-          marginBottom: '1.5rem',
-          borderColor: 'rgba(99, 102, 241, 0.25)',
-          background: 'rgba(15, 23, 42, 0.85)'
-        }}>
-          <div style={{
-            fontSize: '0.8rem',
-            fontWeight: 700,
-            color: 'var(--text-secondary)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            marginBottom: '0.75rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between'
-          }}>
-            <span>Quick Demo Sign-in</span>
-            <span style={{ fontSize: '0.7rem', color: 'var(--primary)' }}>Click to fill</span>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
-            <button
-              type="button"
-              onClick={() => handleSelectDemo('admin@contribhub.dev', 'Password123!')}
-              className="btn btn-outline btn-sm"
+          {/* GitHub Repository Badge */}
+          <div style={{ marginTop: '0.85rem' }}>
+            <a
+              href="https://github.com/Amityush-lgtm/ContribHub"
+              target="_blank"
+              rel="noreferrer"
               style={{
-                flexDirection: 'column',
-                padding: '0.6rem 0.4rem',
-                gap: '0.25rem',
-                borderColor: email === 'admin@contribhub.dev' ? 'var(--primary)' : 'var(--border-color)',
-                background: email === 'admin@contribhub.dev' ? 'var(--primary-light)' : 'transparent'
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                padding: '0.35rem 0.85rem',
+                borderRadius: '9999px',
+                background: 'rgba(255, 255, 255, 0.06)',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                color: '#e2e8f0',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                textDecoration: 'none',
+                transition: 'all 0.2s ease'
               }}
             >
-              <Shield size={16} style={{ color: '#f472b6' }} />
-              <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Admin</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleSelectDemo('mentor@contribhub.dev', 'Password123!')}
-              className="btn btn-outline btn-sm"
-              style={{
-                flexDirection: 'column',
-                padding: '0.6rem 0.4rem',
-                gap: '0.25rem',
-                borderColor: email === 'mentor@contribhub.dev' ? 'var(--primary)' : 'var(--border-color)',
-                background: email === 'mentor@contribhub.dev' ? 'var(--primary-light)' : 'transparent'
-              }}
-            >
-              <Compass size={16} style={{ color: '#22d3ee' }} />
-              <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Mentor</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleSelectDemo('mentee@contribhub.dev', 'Password123!')}
-              className="btn btn-outline btn-sm"
-              style={{
-                flexDirection: 'column',
-                padding: '0.6rem 0.4rem',
-                gap: '0.25rem',
-                borderColor: email === 'mentee@contribhub.dev' ? 'var(--primary)' : 'var(--border-color)',
-                background: email === 'mentee@contribhub.dev' ? 'var(--primary-light)' : 'transparent'
-              }}
-            >
-              <Code2 size={16} style={{ color: '#818cf8' }} />
-              <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Mentee</span>
-            </button>
+              <Github size={14} />
+              <span>Amityush-lgtm/ContribHub</span>
+              <ExternalLink size={12} style={{ opacity: 0.7 }} />
+            </a>
           </div>
         </div>
 
-        {/* Main Login Card */}
+        {/* Form Container */}
         <div className="glass-panel" style={{ padding: '2rem' }}>
+          {/* Mode Switcher Tabs */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            background: 'rgba(15, 23, 42, 0.6)',
+            borderRadius: 'var(--radius-sm)',
+            padding: '0.25rem',
+            marginBottom: '1.75rem',
+            border: '1px solid var(--border-color)'
+          }}>
+            <button
+              type="button"
+              onClick={() => {
+                setMode('login');
+                setErrorMsg('');
+                setSuccessMsg('');
+              }}
+              style={{
+                padding: '0.6rem 1rem',
+                borderRadius: 'calc(var(--radius-sm) - 2px)',
+                background: mode === 'login' ? 'var(--primary)' : 'transparent',
+                color: mode === 'login' ? '#ffffff' : 'var(--text-secondary)',
+                fontWeight: 700,
+                fontSize: '0.875rem',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode('register');
+                setErrorMsg('');
+                setSuccessMsg('');
+              }}
+              style={{
+                padding: '0.6rem 1rem',
+                borderRadius: 'calc(var(--radius-sm) - 2px)',
+                background: mode === 'register' ? 'var(--primary)' : 'transparent',
+                color: mode === 'register' ? '#ffffff' : 'var(--text-secondary)',
+                fontWeight: 700,
+                fontSize: '0.875rem',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              Create Account
+            </button>
+          </div>
+
           {errorMsg && (
             <div style={{
               background: 'rgba(239, 68, 68, 0.12)',
@@ -226,96 +273,287 @@ export const Login = () => {
             </div>
           )}
 
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label className="form-label" htmlFor="email">
-                Email Address
-              </label>
-              <div style={{ position: 'relative' }}>
-                <Mail
-                  size={18}
-                  style={{
-                    position: 'absolute',
-                    left: '1rem',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    color: 'var(--text-muted)'
-                  }}
-                />
+          {successMsg && (
+            <div style={{
+              background: 'rgba(16, 185, 129, 0.12)',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '0.85rem 1rem',
+              color: '#6ee7b7',
+              fontSize: '0.875rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.65rem',
+              marginBottom: '1.5rem'
+            }}>
+              <CheckCircle2 size={18} style={{ flexShrink: 0 }} />
+              <span>{successMsg}</span>
+            </div>
+          )}
+
+          {mode === 'login' ? (
+            <form onSubmit={handleLoginSubmit}>
+              <div className="form-group">
+                <label className="form-label" htmlFor="email">
+                  Email Address
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <Mail
+                    size={18}
+                    style={{
+                      position: 'absolute',
+                      left: '1rem',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: 'var(--text-muted)'
+                    }}
+                  />
+                  <input
+                    id="email"
+                    type="email"
+                    className="form-control"
+                    style={{ paddingLeft: '2.75rem' }}
+                    placeholder="you@domain.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="password">
+                  Password
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <Lock
+                    size={18}
+                    style={{
+                      position: 'absolute',
+                      left: '1rem',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: 'var(--text-muted)'
+                    }}
+                  />
+                  <input
+                    id="password"
+                    type="password"
+                    className="form-control"
+                    style={{ paddingLeft: '2.75rem' }}
+                    placeholder="••••••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn btn-primary"
+                style={{ width: '100%', marginTop: '0.75rem', padding: '0.85rem' }}
+              >
+                {loading ? (
+                  <span>Signing In...</span>
+                ) : (
+                  <>
+                    <span>Sign In to ContribHub</span>
+                    <ArrowRight size={16} />
+                  </>
+                )}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleRegisterSubmit}>
+              <div className="form-group">
+                <label className="form-label" htmlFor="name">
+                  Full Name *
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <User
+                    size={18}
+                    style={{
+                      position: 'absolute',
+                      left: '1rem',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: 'var(--text-muted)'
+                    }}
+                  />
+                  <input
+                    id="name"
+                    type="text"
+                    className="form-control"
+                    style={{ paddingLeft: '2.75rem' }}
+                    placeholder="Your Name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="reg-email">
+                  Email Address *
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <Mail
+                    size={18}
+                    style={{
+                      position: 'absolute',
+                      left: '1rem',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: 'var(--text-muted)'
+                    }}
+                  />
+                  <input
+                    id="reg-email"
+                    type="email"
+                    className="form-control"
+                    style={{ paddingLeft: '2.75rem' }}
+                    placeholder="you@domain.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="reg-password">
+                  Password (min 6 characters) *
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <Lock
+                    size={18}
+                    style={{
+                      position: 'absolute',
+                      left: '1rem',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: 'var(--text-muted)'
+                    }}
+                  />
+                  <input
+                    id="reg-password"
+                    type="password"
+                    className="form-control"
+                    style={{ paddingLeft: '2.75rem' }}
+                    placeholder="••••••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Role Picker */}
+              <div className="form-group">
+                <label className="form-label">I want to join as</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => setRole('mentee')}
+                    className={`btn ${role === 'mentee' ? 'btn-primary' : 'btn-outline'} btn-sm`}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', padding: '0.65rem' }}
+                  >
+                    <Code2 size={16} />
+                    <span>Mentee</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRole('mentor')}
+                    className={`btn ${role === 'mentor' ? 'btn-primary' : 'btn-outline'} btn-sm`}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', padding: '0.65rem' }}
+                  >
+                    <Compass size={16} />
+                    <span>Mentor</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* GitHub Username */}
+              <div className="form-group">
+                <label className="form-label" htmlFor="reg-github">
+                  GitHub Username (Optional)
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <Github
+                    size={18}
+                    style={{
+                      position: 'absolute',
+                      left: '1rem',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: 'var(--text-muted)'
+                    }}
+                  />
+                  <input
+                    id="reg-github"
+                    type="text"
+                    className="form-control"
+                    style={{ paddingLeft: '2.75rem' }}
+                    placeholder="e.g. Amityush-lgtm"
+                    value={githubUsername}
+                    onChange={(e) => setGithubUsername(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Skills */}
+              <div className="form-group">
+                <label className="form-label" htmlFor="reg-skills">
+                  Skills / Tech Stack (comma-separated)
+                </label>
                 <input
-                  id="email"
-                  type="email"
+                  id="reg-skills"
+                  type="text"
                   className="form-control"
-                  style={{ paddingLeft: '2.75rem' }}
-                  placeholder="name@contribhub.dev"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
+                  placeholder="React, Node.js, Python, Git"
+                  value={skills}
+                  onChange={(e) => setSkills(e.target.value)}
                 />
               </div>
-            </div>
 
-            <div className="form-group">
-              <label className="form-label" htmlFor="password">
-                Password
-              </label>
-              <div style={{ position: 'relative' }}>
-                <Lock
-                  size={18}
-                  style={{
-                    position: 'absolute',
-                    left: '1rem',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    color: 'var(--text-muted)'
-                  }}
-                />
-                <input
-                  id="password"
-                  type="password"
-                  className="form-control"
-                  style={{ paddingLeft: '2.75rem' }}
-                  placeholder="••••••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn btn-primary"
-              style={{ width: '100%', marginTop: '0.5rem', padding: '0.85rem' }}
-            >
-              {loading ? (
-                <span>Authenticating...</span>
-              ) : (
-                <>
-                  <span>Sign In to ContribHub</span>
-                  <ArrowRight size={16} />
-                </>
-              )}
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn btn-primary"
+                style={{ width: '100%', marginTop: '0.75rem', padding: '0.85rem' }}
+              >
+                {loading ? (
+                  <span>Creating Account...</span>
+                ) : (
+                  <>
+                    <span>Create ContribHub Account</span>
+                    <ArrowRight size={16} />
+                  </>
+                )}
+              </button>
+            </form>
+          )}
 
           <div style={{
             marginTop: '1.5rem',
             paddingTop: '1.25rem',
             borderTop: '1px solid var(--border-color)',
-            fontSize: '0.8rem',
+            fontSize: '0.825rem',
             color: 'var(--text-muted)',
             textAlign: 'center'
           }}>
-            Default password for all seeded accounts is{' '}
-            <code style={{
-              background: 'var(--bg-subtle)',
-              padding: '0.15rem 0.4rem',
-              borderRadius: '4px',
-              color: 'var(--text-primary)',
-              fontFamily: 'var(--font-mono)'
-            }}>Password123!</code>
+            Created for open-source mentorship cohorts •{' '}
+            <a
+              href="https://github.com/Amityush-lgtm/ContribHub"
+              target="_blank"
+              rel="noreferrer"
+              style={{ color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}
+            >
+              GitHub Repository
+            </a>
           </div>
         </div>
       </div>

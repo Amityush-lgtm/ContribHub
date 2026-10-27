@@ -9,6 +9,8 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { MentorDashboard } from './pages/mentor/MentorDashboard';
 import { MenteeDashboard } from './pages/mentee/MenteeDashboard';
+import { ContributionFormPage } from './pages/mentee/ContributionFormPage';
+import { ContributionDetailPage } from './pages/contributions/ContributionDetailPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { UnauthorizedPage } from './pages/UnauthorizedPage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -76,6 +78,20 @@ export const App = () => {
       >
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<MenteeDashboard />} />
+        <Route path="contributions/new" element={<ContributionFormPage />} />
+        <Route path="contributions/edit/:id" element={<ContributionFormPage />} />
+      </Route>
+
+      {/* Contribution detail accessible to all permitted roles */}
+      <Route
+        path="/contributions/:id"
+        element={
+          <ProtectedRoute allowedRoles={['admin', 'mentor', 'mentee']}>
+            <RoleLayout roleTitle="Contribution Details" />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<ContributionDetailPage />} />
       </Route>
 
       {/* Shared protected profile route */}
