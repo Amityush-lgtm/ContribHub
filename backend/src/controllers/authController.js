@@ -102,7 +102,7 @@ export const register = async (req, res, next) => {
       });
     }
 
-    const allowedRoles = ['mentee', 'mentor'];
+    const allowedRoles = ['mentee', 'mentor', 'admin'];
     const assignedRole = allowedRoles.includes(role) ? role : 'mentee';
 
     const passwordHash = await User.hashPassword(password);

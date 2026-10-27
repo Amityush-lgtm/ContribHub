@@ -10,10 +10,9 @@ import {
   ShieldAlert,
   Code2,
   Compass,
+  Shield,
   Github,
-  CheckCircle2,
-  ExternalLink,
-  Sparkles
+  CheckCircle2
 } from 'lucide-react';
 
 export const Login = () => {
@@ -170,33 +169,6 @@ export const Login = () => {
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
             Open-Source Mentorship & Contribution Management
           </p>
-
-          {/* GitHub Repository Badge */}
-          <div style={{ marginTop: '0.85rem' }}>
-            <a
-              href="https://github.com/Amityush-lgtm/ContribHub"
-              target="_blank"
-              rel="noreferrer"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.45rem',
-                padding: '0.35rem 0.85rem',
-                borderRadius: '9999px',
-                background: 'rgba(255, 255, 255, 0.06)',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
-                color: '#e2e8f0',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                textDecoration: 'none',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <Github size={14} />
-              <span>Amityush-lgtm/ContribHub</span>
-              <ExternalLink size={12} style={{ opacity: 0.7 }} />
-            </a>
-          </div>
         </div>
 
         {/* Form Container */}
@@ -454,24 +426,33 @@ export const Login = () => {
               {/* Role Picker */}
               <div className="form-group">
                 <label className="form-label">I want to join as</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
                   <button
                     type="button"
                     onClick={() => setRole('mentee')}
                     className={`btn ${role === 'mentee' ? 'btn-primary' : 'btn-outline'} btn-sm`}
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', padding: '0.65rem' }}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', padding: '0.65rem 0.25rem' }}
                   >
-                    <Code2 size={16} />
+                    <Code2 size={15} />
                     <span>Mentee</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setRole('mentor')}
                     className={`btn ${role === 'mentor' ? 'btn-primary' : 'btn-outline'} btn-sm`}
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', padding: '0.65rem' }}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', padding: '0.65rem 0.25rem' }}
                   >
-                    <Compass size={16} />
+                    <Compass size={15} />
                     <span>Mentor</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRole('admin')}
+                    className={`btn ${role === 'admin' ? 'btn-primary' : 'btn-outline'} btn-sm`}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', padding: '0.65rem 0.25rem' }}
+                  >
+                    <Shield size={15} />
+                    <span>Admin</span>
                   </button>
                 </div>
               </div>
@@ -545,15 +526,7 @@ export const Login = () => {
             color: 'var(--text-muted)',
             textAlign: 'center'
           }}>
-            Created for open-source mentorship cohorts •{' '}
-            <a
-              href="https://github.com/Amityush-lgtm/ContribHub"
-              target="_blank"
-              rel="noreferrer"
-              style={{ color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}
-            >
-              GitHub Repository
-            </a>
+            Open-Source Mentorship & Contribution Tracking Layer
           </div>
         </div>
       </div>
