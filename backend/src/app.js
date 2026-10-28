@@ -11,6 +11,7 @@ import assignmentRoutes from './routes/assignmentRoutes.js';
 import contributionRoutes from './routes/contributionRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
+import { connectDB } from './config/db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -47,7 +48,7 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));
 }
 
-// Health check endpoint
+// Health check endpoint (always accessible without DB dependency)
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     status: 'ok',
@@ -55,6 +56,20 @@ app.get('/api/health', (req, res) => {
     service: 'ContribHub API',
     phases: 'Phases 1-5 Complete: Foundation, Contributions, Mentor Evaluation, Admin Management, Deployment'
   });
+});
+
+// Serverless DB connection middleware: ensure DB connection is ready before handling /api routes
+app.use('/api', async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    console.error('Database connection error in request middleware:', err.message);
+    return res.status(503).json({
+      success: false,
+      message: `Database connection unavailable (${err.message}). Ensure MongoDB Atlas Network Access has 0.0.0.0/0 allowed and MONGODB_URI is set in Vercel.`
+    });
+  }
 });
 
 // Mount Routes

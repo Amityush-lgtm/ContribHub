@@ -2,21 +2,45 @@ import mongoose from 'mongoose';
 
 let memoryServer = null;
 
+// Cache connection promise across serverless lambdas / invocations
+let cached = global.mongoose;
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
+
 export const connectDB = async () => {
-  // Reuse existing connection in serverless (e.g. Vercel)
-  if (mongoose.connection.readyState >= 1) {
-    return;
+  // If already connected, return existing connection
+  if (mongoose.connection.readyState === 1) {
+    return mongoose.connection;
+  }
+
+  // If connection is in progress, wait for it
+  if (cached.promise) {
+    try {
+      cached.conn = await cached.promise;
+      return cached.conn;
+    } catch (err) {
+      cached.promise = null;
+    }
   }
 
   const uri = process.env.MONGODB_URI;
 
   if (uri && uri.trim() !== '') {
+    const opts = {
+      bufferCommands: false, // Prevents 10000ms buffering hang on serverless / disconnected state
+      serverSelectionTimeoutMS: 8000,
+      connectTimeoutMS: 10000,
+    };
+
     try {
       console.log(`Connecting to MongoDB at: ${uri.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@')}`);
-      await mongoose.connect(uri, { serverSelectionTimeoutMS: 8000 });
+      cached.promise = mongoose.connect(uri, opts);
+      cached.conn = await cached.promise;
       console.log('Connected to MongoDB successfully.');
-      return;
+      return cached.conn;
     } catch (err) {
+      cached.promise = null;
       console.warn('[WARN] Failed to connect to specified MONGODB_URI:', err.message);
       if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
         throw err;
